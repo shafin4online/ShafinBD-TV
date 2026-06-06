@@ -10,7 +10,7 @@ export default function MobileBottomNav({ mobileActiveTab, setMobileActiveTab }:
   return (
     <nav 
       id="mobile-bottom-nav" 
-      className="lg:hidden fixed bottom-5 left-5 right-5 z-50 bg-black/95 backdrop-blur-lg border border-white/10 rounded-2xl p-2 flex items-center justify-around shadow-2xl shadow-cyan-950/30"
+      className="lg:hidden fixed bottom-[max(16px,env(safe-area-inset-bottom))] left-4 right-4 z-50 bg-zinc-950/95 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 flex items-center justify-around shadow-2xl shadow-black/80 transform-gpu"
     >
       <button
         onClick={() => setMobileActiveTab("player")}

@@ -10,17 +10,16 @@ import {
   Pause, 
   Volume2, 
   VolumeX, 
-  Maximize, 
-  Minimize, 
-  Settings, 
-  AlertCircle, 
   RefreshCw, 
-  Activity, 
   Layers, 
-  Check, 
-  HelpCircle 
+  Tv
 } from "lucide-react";
 import { Channel } from "../types";
+import PlayerShortcuts from "./PlayerShortcuts";
+import PlayerDiagnostics from "./PlayerDiagnostics";
+import PlayerErrorScaffold from "./PlayerErrorScaffold";
+import PlayerHeader from "./PlayerHeader";
+import PlayerControls from "./PlayerControls";
 
 interface IPTVPlayerProps {
   channel: Channel | null;
@@ -41,6 +40,19 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   
+  // Dynamic Aspect Ratio Selector: fit (contain), stretch (fill), zoom (cover)
+  const [aspectRatio, setAspectRatio] = useState<"contain" | "fill" | "cover">("contain");
+
+  // Keyboard shortcut assistant modal state
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Auto-hiding control HUD and mouse cursor state
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Premium ripple interaction animations state (YT/Netflix style center feedback)
+  const [ripple, setRipple] = useState<{ id: number; type: string } | null>(null);
+
   // Custom states for quality switching
   const [qualities, setQualities] = useState<Array<{ index: number; height: number; bitrate: number }>>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1); // -1 is Auto
@@ -53,9 +65,61 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
   const [bufferLength, setBufferLength] = useState<number>(0);
   const [bitrate, setBitrate] = useState<number>(0);
 
-  // Trigger stream refresh/retry
+  // Trigger ripple animations
+  const triggerRipple = (type: string) => {
+    setRipple({ id: Date.now(), type });
+  };
+
+  // Reset/Trigger controls & cursor self-hide countdown helper
+  const resetControlsTimeout = () => {
+    setIsControlsVisible(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    // Only schedule controls fade out when playing is active and settings is not open
+    if (isPlaying && !showSettings && !showShortcuts) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setIsControlsVisible(false);
+      }, 3000);
+    }
+  };
+
+  // Restart / Reload current feed
   const handleReload = () => {
     setRetryCount(prev => prev + 1);
+    triggerRipple("reload");
+  };
+
+  // Trigger ripple clear auto-timeout
+  useEffect(() => {
+    if (ripple) {
+      const timer = setTimeout(() => {
+        setRipple(null);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [ripple]);
+
+  // Monitor mouse interactions to reset auto-hide controls
+  useEffect(() => {
+    resetControlsTimeout();
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [isPlaying, showSettings, showShortcuts]);
+
+  // Trigger action: Aspect Ratio Rotation sequence
+  const rotateAspectRatio = () => {
+    const nextMap: Record<"contain" | "fill" | "cover", "contain" | "fill" | "cover"> = {
+      contain: "cover",
+      cover: "fill",
+      fill: "contain",
+    };
+    const nextRatio = nextMap[aspectRatio];
+    setAspectRatio(nextRatio);
+    triggerRipple(`aspect-${nextRatio}`);
   };
 
   // Keep track of quality/buffering stats on intervals
@@ -165,11 +229,6 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
           });
       });
 
-      // Handle custom quality changes
-      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-        // Sync our local states
-      });
-
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error("HLS.js loading error: ", data);
         
@@ -194,7 +253,7 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
       });
 
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Native Safari support
+      // Native Safari/iOS support
       video.src = streamUrl;
       video.addEventListener("loadedmetadata", () => {
         setIsLoading(false);
@@ -231,7 +290,7 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
     };
   }, []);
 
-  // Sync Volume
+  // Sync Volume & Mute in real live-video elements
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
@@ -239,16 +298,99 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
     }
   }, [volume, isMuted]);
 
-  // Listen for fullscreen change events to update state representation
+  // Listen for native Fullscreen changed sensors
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const activeFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(activeFullscreen);
+      
+      // If exited fullscreen, automatically unlock orientation back to portrait/auto
+      if (!activeFullscreen) {
+        if (screen.orientation && typeof screen.orientation.unlock === "function") {
+          try {
+            screen.orientation.unlock();
+          } catch (err) {
+            console.log("Failed to unlock orientation:", err);
+          }
+        }
+      }
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  // Controls actions
+  // Keyboard Shortcuts Listeners Setup
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore key events when user is focusing on chat, fields or input controls
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      resetControlsTimeout(); // Show controls when user hits keys
+
+      switch (key) {
+        case " ":
+        case "k":
+          e.preventDefault();
+          togglePlay();
+          break;
+        case "f":
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case "m":
+          e.preventDefault();
+          toggleMute();
+          break;
+        case "a":
+        case "v":
+          e.preventDefault();
+          rotateAspectRatio();
+          break;
+        case "r":
+          e.preventDefault();
+          handleReload();
+          break;
+        case "arrowup":
+          e.preventDefault();
+          setVolume(prev => {
+            const nextVal = Math.min(1, parseFloat((prev + 0.05).toFixed(2)));
+            triggerRipple(`vol-${Math.round(nextVal * 100)}`);
+            if (isMuted) setIsMuted(false);
+            return nextVal;
+          });
+          break;
+        case "arrowdown":
+          e.preventDefault();
+          setVolume(prev => {
+            const nextVal = Math.max(0, parseFloat((prev - 0.05).toFixed(2)));
+            triggerRipple(`vol-${Math.round(nextVal * 100)}`);
+            if (isMuted && nextVal > 0) setIsMuted(false);
+            return nextVal;
+          });
+          break;
+        case "h":
+          e.preventDefault();
+          setShowShortcuts(prev => !prev);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, isMuted, volume, aspectRatio, channel]);
+
+  // Playback Control Actions
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video || isLoading || errorMsg) return;
@@ -256,15 +398,21 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
     if (isPlaying) {
       video.pause();
       setIsPlaying(false);
+      triggerRipple("pause");
     } else {
       video.play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true);
+          triggerRipple("play");
+        })
         .catch(() => setIsPlaying(false));
     }
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    const nextMute = !isMuted;
+    setIsMuted(nextMute);
+    triggerRipple(nextMute ? "mute" : "unmute");
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -275,17 +423,32 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
     }
   };
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     const container = containerRef.current;
     if (!container) return;
 
     if (!isFullscreen) {
       if (container.requestFullscreen) {
-        container.requestFullscreen();
+        try {
+          await container.requestFullscreen();
+          // Attempt to lock orientation to landscape on mobile devices
+          const orientationObj = screen.orientation as any;
+          if (orientationObj && typeof orientationObj.lock === "function") {
+            await orientationObj.lock("landscape").catch((err: any) => {
+              console.log("Orientation lock is not supported or was rejected:", err);
+            });
+          }
+        } catch (err) {
+          console.error("Failed to enter fullscreen:", err);
+        }
       }
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen();
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          console.error("Failed to exit fullscreen:", err);
+        }
       }
     }
   };
@@ -294,246 +457,175 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
     if (hlsRef.current) {
       hlsRef.current.currentLevel = levelIndex;
       setCurrentQuality(levelIndex);
+      triggerRipple("quality");
     }
     setShowSettings(false);
   };
 
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // If controllers/settings are clicked, skip container interaction toggles
+    const target = e.target as HTMLElement;
+    if (target.closest("#hud-interactive-elements") || target.closest("#player-diagnostics-overlay")) {
+      return;
+    }
+    togglePlay();
+  };
+
+  const handleContainerDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFullscreen();
+  };
+
+  // Resolve current active class targeting object-fit properties on the video element
+  const getAspectRatioClass = () => {
+    if (aspectRatio === "contain") return "object-contain";
+    if (aspectRatio === "fill") return "object-fill";
+    return "object-cover";
+  };
+
   return (
-    <div id="player-view-container" className="flex flex-col bg-[#0d0d0d] rounded-2xl overflow-hidden shadow-2xl relative border border-white/5 transition-all duration-300">
+    <div 
+      id="player-view-container" 
+      className="flex flex-col bg-[#0d0d0d] rounded-2xl overflow-hidden shadow-2xl relative border border-white/5 transition-all duration-300"
+    >
+      {/* Dynamic Keyframe Ripple Effect CSS */}
+      <style>{`
+        @keyframes rippleVisual {
+          0% { transform: scale(0.5); opacity: 0; }
+          15% { transform: scale(1.1); opacity: 0.95; }
+          40% { transform: scale(1); opacity: 0.9; }
+          100% { transform: scale(1.3); opacity: 0; }
+        }
+        .animate-hud-ripple {
+          animation: rippleVisual 800ms cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+      `}</style>
       
       {/* Video Frame Host Container */}
       <div 
         ref={containerRef}
-        className="relative group aspect-video w-full bg-black select-none max-h-[70vh]"
-        onClick={togglePlay}
+        className={`relative group aspect-video w-full bg-black select-none max-h-[70vh] transition-all overflow-hidden ${
+          isControlsVisible ? "cursor-default" : "cursor-none"
+        }`}
+        onClick={handleContainerClick}
+        onDoubleClick={handleContainerDoubleClick}
+        onMouseMove={resetControlsTimeout}
+        onTouchStart={resetControlsTimeout}
       >
         <video
           ref={videoRef}
-          className="w-full h-full object-contain cursor-pointer"
+          className={`w-full h-full cursor-pointer transition-all duration-300 ${getAspectRatioClass()}`}
           playsInline
           id="shafinbd-video-element"
         />
 
+        {/* Central visual feedback ripple (YT styles) */}
+        {ripple && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+            <div className="bg-black/80 backdrop-blur-md rounded-full p-6 border border-white/10 text-cyan-400 font-mono shadow-2xl animate-hud-ripple flex flex-col items-center justify-center min-w-[100px] h-[100px]">
+              {ripple.type === "play" && <Play size={28} fill="currentColor" className="ml-1" />}
+              {ripple.type === "pause" && <Pause size={28} fill="currentColor" />}
+              {ripple.type === "mute" && <VolumeX size={28} className="text-rose-400" />}
+              {ripple.type === "unmute" && <Volume2 size={28} className="text-cyan-400" />}
+              {ripple.type === "reload" && <RefreshCw size={28} className="animate-spin text-cyan-400" />}
+              {ripple.type === "quality" && (
+                <div className="flex flex-col items-center">
+                  <Layers size={20} />
+                  <span className="text-[10px] font-bold mt-1">Resolution</span>
+                </div>
+              )}
+              {ripple.type.startsWith("vol-") && (
+                <div className="flex flex-col items-center">
+                  <Volume2 size={20} />
+                  <span className="text-[10px] font-bold mt-1">{ripple.type.slice(4)}%</span>
+                </div>
+              )}
+              {ripple.type.startsWith("aspect-") && (
+                <div className="flex flex-col items-center">
+                  <Tv size={20} />
+                  <span className="text-[10px] font-bold mt-1 text-center uppercase">
+                    {ripple.type.replace("aspect-", "")}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Dynamic Inner Hover Overlay (Semi-gradient background) */}
         <div 
           id="player-overlay"
-          className={`absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/35 flex flex-col justify-between transition-opacity duration-300 p-4 ${
-            isPlaying && !showSettings ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+          className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/45 flex flex-col justify-between transition-opacity duration-300 p-4 ${
+            isControlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => e.stopPropagation()} // Overlays maintain core click handling
         >
-          {/* Header Title Information */}
-          <div className="flex justify-between items-start">
-            <div className="flex flex-col drop-shadow-md">
-              {channel ? (
-                <>
-                  <span id="player-channel-category" className="text-cyan-400 font-mono text-[10px] uppercase font-bold tracking-widest flex items-center gap-1.5 mb-1 bg-cyan-950/50 border border-cyan-800/30 px-2 py-0.5 rounded w-fit">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    {channel.category}
-                  </span>
-                  <h3 id="player-channel-title" className="text-white text-base md:text-xl font-bold tracking-tight">
-                    {channel.name}
-                  </h3>
-                </>
-              ) : (
-                <span className="text-white font-medium">Select a live TV channel to stream</span>
-              )}
-            </div>
-
-            {/* Diagnostic Stats Button */}
-            <div className="flex items-center gap-2">
-              <button 
-                id="btn-toggle-diagnostics"
-                onClick={() => setShowStats(!showStats)}
-                title="Stream Diagnostics"
-                className={`p-2 rounded-lg border transition-all ${
-                  showStats 
-                    ? "bg-cyan-500/20 border-cyan-500/30 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.15)]" 
-                    : "bg-black/40 border-white/10 hover:border-white/20 text-white/70 hover:text-white"
-                }`}
-              >
-                <Activity size={16} />
-              </button>
-            </div>
-          </div>
+          {/* Header Title Information Row */}
+          <PlayerHeader 
+            channel={channel}
+            showShortcuts={showShortcuts}
+            setShowShortcuts={setShowShortcuts}
+            showStats={showStats}
+            setShowStats={setShowStats}
+          />
 
           {/* Buffering/Loading Indicator */}
           {isLoading && (
-            <div id="player-loading-scaffold" className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 pointer-events-none">
+            <div id="player-loading-scaffold" className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 pointer-events-none animate-pulse">
               <RefreshCw className="animate-spin text-cyan-400 mb-3" size={42} />
-              <p className="text-white/80 font-medium tracking-wide text-sm">Aligning IPTV signal buffers...</p>
+              <p className="text-cyan-300 font-semibold tracking-wide text-xs md:text-sm font-mono">ALIGNING IPTV LIVE FEED...</p>
             </div>
           )}
 
           {/* Playback Error Container */}
           {errorMsg && (
-            <div id="player-error-scaffold" className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 z-20 p-4 text-center animate-fade-in text-slate-100">
-              <div className="max-w-[480px]">
-                <AlertCircle className="text-red-500 mx-auto mb-4 animate-bounce" size={48} />
-                <h4 className="text-white text-lg font-bold mb-2">Stream Initialization Offline</h4>
-                <p className="text-slate-400 text-xs md:text-sm line-clamp-3 mb-4 leading-relaxed">
-                  {errorMsg}
-                </p>
-                
-                {/* Advanced Diagnostic recommendations for users */}
-                <div id="troubleshooting-card" className="bg-slate-900/80 border border-slate-700/50 rounded-xl p-3 mb-5 text-left text-slate-300 text-xs space-y-1.5">
-                  <div className="font-semibold text-rose-300 flex items-center gap-1">
-                    <HelpCircle size={13} strokeWidth={2.5} />
-                    Common Fixes:
-                  </div>
-                  <p>1. <strong>CORS Shielding</strong>: IPTV feeds require CORS clearance. If blocked, install <strong>CORS Unblock</strong> extension in your Chrome browser.</p>
-                  <p>2. <strong>Stream Offline</strong>: Feeds expire frequently. Try pasting a verified M3U8 link in custom payload tab or test other loaded channels.</p>
-                </div>
-                
-                <div className="flex items-center justify-center gap-3">
-                  <button 
-                    id="btn-error-retry"
-                    onClick={handleReload}
-                    className="bg-cyan-500 hover:bg-cyan-600 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] active:transform hover:scale-[1.02] text-black font-semibold text-sm px-4 py-2 rounded-xl transition duration-150 flex items-center gap-1.5 shadow-lg shadow-cyan-950/40"
-                  >
-                    <RefreshCw size={14} className="animate-spin-slow" />
-                    Attempt Reconnection
-                  </button>
-                </div>
-              </div>
-            </div>
+            <PlayerErrorScaffold 
+              errorMsg={errorMsg} 
+              onReload={handleReload} 
+            />
           )}
 
-          {/* Analytics / Stats Overlay */}
+          {/* Interactive Keyboard Shortcuts Assistant Modal */}
+          {showShortcuts && (
+            <PlayerShortcuts 
+              onClose={() => setShowShortcuts(false)} 
+            />
+          )}
+
+          {/* Diagnostics / Stats Overlay panel */}
           {showStats && isPlaying && (
-            <div id="player-diagnostics-overlay" className="absolute top-16 right-4 bg-black/90 border border-white/10 rounded-xl p-3 text-[11px] font-mono text-slate-300 space-y-1.5 z-10 max-w-[200px] shadow-lg pointer-events-none">
-              <div className="border-b border-white/5 pb-1 mb-1 font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1">
-                <Activity size={10} /> Stream Signals
-              </div>
-              <div><span className="text-slate-500">Res:</span> {resolution}</div>
-              <div><span className="text-slate-500">Buffer:</span> {bufferLength}s</div>
-              {bitrate > 0 && <div><span className="text-slate-500">Bitrate:</span> {bitrate} kbps</div>}
-              {latency > 0 && <div><span className="text-slate-500">Latency:</span> {latency}s</div>}
-              <div><span className="text-slate-500">Protocol:</span> HLS.js {Hls.version}</div>
-            </div>
+            <PlayerDiagnostics 
+              resolution={resolution}
+              bufferLength={bufferLength}
+              bitrate={bitrate}
+              latency={latency}
+            />
           )}
 
-          {/* Sub Control bar */}
-          <div className="mt-auto flex flex-col gap-2">
-            
-            {/* ProgressBar / Hover Indicator - (Not seeker because HLS livestreams are infinite) */}
-            <div className="w-full flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0" />
-              <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-cyan-400 rounded-full w-full" />
-              </div>
-              <span className="text-[10px] text-white/50 font-mono tracking-wider">LIVE STREAM</span>
-            </div>
-
-            {/* Custom Control Buttons layout */}
-            <div className="flex items-center justify-between mt-1">
-              {/* Play Pause & Volume Controls */}
-              <div className="flex items-center gap-4">
-                <button
-                  id="btn-play-pause"
-                  onClick={togglePlay}
-                  className="text-white hover:text-cyan-400 transition-colors p-1"
-                >
-                  {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                </button>
-
-                {/* Volume slider control */}
-                <div className="flex items-center gap-2 group/volume">
-                  <button
-                    id="btn-volume-toggle"
-                    onClick={toggleMute}
-                    className="text-white/80 hover:text-white transition-colors"
-                  >
-                    {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                  </button>
-                  <input
-                    id="input-player-volume"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    className="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-cyan-400 group-hover/volume:w-20 transition-all duration-300"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-              </div>
-
-              {/* Right Settings and Fullscreen Control */}
-              <div className="flex items-center gap-3">
-                {/* Advanced Settings menu toggle */}
-                {qualities.length > 0 && (
-                  <div className="relative">
-                    <button
-                      id="btn-toggle-video-settings"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSettings(!showSettings);
-                      }}
-                      className="text-white/80 hover:text-cyan-400 transition-colors p-1"
-                    >
-                      <Settings size={18} className={showSettings ? "rotate-45" : ""} />
-                    </button>
-                    
-                    {/* Settings Dropdown menu popup */}
-                    {showSettings && (
-                      <div className="absolute bottom-10 right-0 bg-slate-950/95 border border-white/10 rounded-xl overflow-hidden py-1.5 w-40 z-30 shadow-2xl backdrop-blur-md">
-                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-mono font-bold px-3 py-1 border-b border-white/5 flex items-center gap-1.5">
-                          <Layers size={10} /> Live Resolution
-                        </div>
-                        {/* Auto Level toggle */}
-                        <button
-                          onClick={() => changeLevel(-1)}
-                          className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between ${
-                            currentQuality === -1 
-                              ? "bg-cyan-500/10 text-cyan-400 font-semibold" 
-                              : "text-slate-300 hover:bg-white/5 hover:text-white"
-                          }`}
-                        >
-                          Auto
-                          {currentQuality === -1 && <Check size={12} />}
-                        </button>
-                        {/* Individual qualities map */}
-                        {qualities.map((q) => (
-                          <button
-                            key={q.index}
-                            onClick={() => changeLevel(q.index)}
-                            className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between ${
-                              currentQuality === q.index 
-                                ? "bg-cyan-500/10 text-cyan-400 font-semibold" 
-                                : "text-slate-300 hover:bg-white/5 hover:text-white"
-                            }`}
-                          >
-                            {q.height}p
-                            {currentQuality === q.index && <Check size={12} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  id="btn-video-fullscreen"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFullscreen();
-                  }}
-                  className="text-white/80 hover:text-white transition-colors p-1"
-                >
-                  {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-                </button>
-              </div>
-
-            </div>
-          </div>
+          {/* Modular sub Control HUD overlay */}
+          <PlayerControls 
+            isPlaying={isPlaying}
+            onTogglePlay={togglePlay}
+            isMuted={isMuted}
+            onToggleMute={toggleMute}
+            volume={volume}
+            onVolumeChange={handleVolumeChange}
+            aspectRatio={aspectRatio}
+            onRotateAspectRatio={rotateAspectRatio}
+            qualities={qualities}
+            currentQuality={currentQuality}
+            onChangeQuality={changeLevel}
+            showSettings={showSettings}
+            onToggleSettings={setShowSettings}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+          />
 
         </div>
 
       </div>
 
-      {/* Under Player Stream Detail Summary card */}
+      {/* Under Player Stream Detail Summary bar */}
       {channel && (
         <div id="player-channel-summary-info" className="p-4 bg-[#0d0d0d] border-t border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -544,7 +636,6 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
                 alt={channel.name}
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  // Hide logo on fallback, show generic badge
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
                 className="w-12 h-12 rounded-xl object-contain bg-slate-900 border border-white/10 p-1 shrink-0"
@@ -555,7 +646,7 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
               </div>
             )}
             
-            <div className="flex flex-col">
+            <div className="flex flex-col animate-fade-in" key={channel.id}>
               <h4 id="player-active-channel-name" className="text-white font-bold leading-snug">{channel.name}</h4>
               <p id="player-active-channel-desc" className="text-slate-400 text-xs mt-0.5 line-clamp-1 max-w-[600px]">
                 {channel.description || "Interactive dynamic live streaming source. Buffering adaptive HLS signals."}
@@ -563,7 +654,7 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs shrink-0 bg-slate-950 px-3 py-1.5 rounded-xl border border-white/5 text-slate-300">
+          <div className="flex items-center gap-2 text-xs shrink-0 bg-slate-950 px-3 py-1.5 rounded-xl border border-white/5 text-slate-300 select-none">
             <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
             <span className="font-semibold text-slate-200">SIGNAL SECURE</span>
           </div>
