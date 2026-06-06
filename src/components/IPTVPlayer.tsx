@@ -12,7 +12,8 @@ import {
   VolumeX, 
   RefreshCw, 
   Layers, 
-  Tv
+  Tv,
+  Users
 } from "lucide-react";
 import { Channel } from "../types";
 import PlayerShortcuts from "./PlayerShortcuts";
@@ -65,6 +66,19 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
   const [bufferLength, setBufferLength] = useState<number>(0);
   const [bitrate, setBitrate] = useState<number>(0);
 
+  // Real-time Concurrent Viewers state
+  const [viewersCount, setViewersCount] = useState<number>(0);
+
+  // Helper to generate a deterministic starting viewer baseline for each channel
+  const getInitialViewers = (channelName: string) => {
+    let hash = 0;
+    for (let i = 0; i < channelName.length; i++) {
+      hash = channelName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Return a realistic viewer numbers between 850 and 15300
+    return 850 + (Math.abs(hash) % 14450);
+  };
+
   // Trigger ripple animations
   const triggerRipple = (type: string) => {
     setRipple({ id: Date.now(), type });
@@ -109,6 +123,29 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
       }
     };
   }, [isPlaying, showSettings, showShortcuts]);
+
+  // Set and animate active concurrent viewer signals
+  useEffect(() => {
+    if (!channel) {
+      setViewersCount(0);
+      return;
+    }
+    
+    // Set baseline
+    const base = getInitialViewers(channel.name);
+    setViewersCount(base);
+
+    // Slowly fluctuate viewer count to simulate dynamic multi-users joining/leaving
+    const interval = setInterval(() => {
+      setViewersCount(current => {
+        const delta = Math.floor(Math.random() * 9) - 4; // -4 to +4 change
+        const nextCount = current + delta;
+        return nextCount > 100 ? nextCount : base;
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [channel]);
 
   // Trigger action: Aspect Ratio Rotation sequence
   const rotateAspectRatio = () => {
@@ -654,9 +691,18 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs shrink-0 bg-slate-950 px-3 py-1.5 rounded-xl border border-white/5 text-slate-300 select-none">
-            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
-            <span className="font-semibold text-slate-200">SIGNAL SECURE</span>
+          <div className="flex items-center gap-2">
+            {viewersCount > 0 && (
+              <div id="player-live-viewers-badge" className="flex items-center gap-1.5 text-xs bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl text-rose-400 select-none font-mono font-medium animate-fade-in">
+                <Users size={12} className="text-rose-500 animate-pulse" />
+                <span>{viewersCount.toLocaleString()} watching</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 text-xs shrink-0 bg-slate-950 px-3 py-1.5 rounded-xl border border-white/5 text-slate-300 select-none">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+              <span className="font-semibold text-slate-200 font-mono tracking-wide">LIVE SIGNAL</span>
+            </div>
           </div>
         </div>
       )}
