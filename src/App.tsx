@@ -50,6 +50,9 @@ export default function App() {
     playlistNameInput,
     setPlaylistNameInput,
     importStatus,
+    blockedChannels,
+    hideBlocked,
+    setHideBlocked,
     activeChannels,
     categories,
     filteredChannels,
@@ -61,6 +64,8 @@ export default function App() {
     handleM3UFileUpload,
     handleImportRemotePlaylist,
     handleClearHistory,
+    handleChannelOffline,
+    handleClearBlockedChannels,
   } = useIPTVState();
 
   // --- PWA INSTALLATION SYSTEM ---
@@ -91,7 +96,10 @@ export default function App() {
         >
           
           {/* Main IPTV player */}
-          <VideoSection activeChannel={activeChannel} />
+          <VideoSection 
+            activeChannel={activeChannel} 
+            onChannelOffline={handleChannelOffline}
+          />
 
           {/* Quick Playlist Selection Bar & Info Statuses */}
           <ActiveSourceBar
@@ -152,6 +160,11 @@ export default function App() {
             favorites={favorites}
             toggleFavorite={toggleFavorite}
             handleSelectChannel={handleSelectChannel}
+            blockedChannelsCount={blockedChannels.length}
+            onClearBlockedChannels={handleClearBlockedChannels}
+            hideBlockedChannels={hideBlocked}
+            setHideBlockedChannels={setHideBlocked}
+            onMarkOffline={handleChannelOffline}
           />
         </div>
 

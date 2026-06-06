@@ -19,6 +19,11 @@ export interface ChannelSidebarProps {
   favorites: string[];
   toggleFavorite: (channelId: string, event: React.MouseEvent) => void;
   handleSelectChannel: (channel: Channel) => void;
+  blockedChannelsCount?: number;
+  onClearBlockedChannels?: () => void;
+  hideBlockedChannels?: boolean;
+  setHideBlockedChannels?: (hide: boolean) => void;
+  onMarkOffline?: (channelId: string) => void;
 }
 
 export default function ChannelSidebar({
@@ -33,8 +38,15 @@ export default function ChannelSidebar({
   favorites,
   toggleFavorite,
   handleSelectChannel,
+  blockedChannelsCount = 0,
+  onClearBlockedChannels,
+  hideBlockedChannels = true,
+  setHideBlockedChannels,
+  onMarkOffline,
 }: ChannelSidebarProps) {
   const [sortMethod, setSortMethod] = useState<"recent" | "name">("recent");
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState({ current: 0, total: 0 });
 
   // Dynamically sort the filtered channels locally
   const sortedChannels = useMemo(() => {
@@ -45,6 +57,38 @@ export default function ChannelSidebar({
     // 'recent' keeps original M3U list index / recently added stream order
     return list;
   }, [filteredChannels, sortMethod]);
+
+  // Background scanner to check all sorted channels health
+  const handleScanCategory = async () => {
+    if (isScanning || sortedChannels.length === 0 || !onMarkOffline) return;
+    setIsScanning(true);
+    setScanProgress({ current: 0, total: sortedChannels.length });
+
+    // Copy list of channels to check
+    const listToScan = [...sortedChannels];
+    let processed = 0;
+
+    for (const chan of listToScan) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000); // 2 seconds timeout is fast!
+
+        // Fetch stream URL with no-cors so we bypass any same-site controls to check if endpoint returns anything
+        await fetch(chan.url, {
+          method: "GET",
+          mode: "no-cors",
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+      } catch (err) {
+        onMarkOffline(chan.id);
+      }
+      processed++;
+      setScanProgress({ current: processed, total: listToScan.length });
+    }
+    
+    setIsScanning(false);
+  };
 
   return (
     <aside id="channel-list-aside" className="lg:col-span-4 w-full flex flex-col gap-5 bg-[#0d0d0d] border border-white/5 rounded-2xl overflow-hidden shadow-xl self-stretch lg:h-[calc(100vh-120px)] lg:sticky lg:top-24">
@@ -109,6 +153,56 @@ export default function ChannelSidebar({
           ))}
         </div>
 
+      </div>
+
+      {/* Smart Auto-Check Shield Console */}
+      <div id="smart-shield-console" className="mx-4 bg-zinc-950/40 px-3.5 py-3 rounded-xl border border-white/5 space-y-2 text-xs select-none">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 font-bold text-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <span className="font-mono tracking-wider font-bold">AUTO SHIELD TRACKER</span>
+          </div>
+          
+          <button
+            id="btn-toggle-auto-hide-blocked"
+            onClick={() => setHideBlockedChannels?.(!hideBlockedChannels)}
+            className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded border transition cursor-pointer ${
+              hideBlockedChannels 
+                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                : "bg-neutral-800 text-slate-400 border-white/5 hover:text-white"
+            }`}
+          >
+            {hideBlockedChannels ? "HIDE OFFLINE: ON" : "HIDE OFFLINE: OFF"}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <span className="font-mono">Hidden feeds: <strong className="text-rose-400">{blockedChannelsCount}</strong></span>
+          <div className="flex items-center gap-3">
+            {blockedChannelsCount > 0 && (
+              <button
+                id="btn-clear-blocked-channels"
+                onClick={onClearBlockedChannels}
+                className="text-cyan-400 hover:text-cyan-300 font-semibold transition cursor-pointer"
+              >
+                Reset Hidden
+              </button>
+            )}
+            
+            <button
+              id="btn-scan-category-channels"
+              onClick={handleScanCategory}
+              disabled={isScanning || sortedChannels.length === 0}
+              className={`font-semibold transition cursor-pointer ${
+                isScanning 
+                  ? "text-yellow-400 animate-pulse font-mono" 
+                  : "text-slate-200 hover:text-cyan-400"
+              }`}
+            >
+              {isScanning ? `Checking ${scanProgress.current}/${scanProgress.total}` : "Scan Category"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Channels Scroll lists container */}

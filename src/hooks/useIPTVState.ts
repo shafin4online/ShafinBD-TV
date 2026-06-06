@@ -41,6 +41,26 @@ export default function useIPTVState() {
     }
   });
 
+  // Blocked / offline channels list
+  const [blockedChannels, setBlockedChannels] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("shafinbd_blocked_channels");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Toggle to hide blocked / dead channels automatically from listing
+  const [hideBlocked, setHideBlocked] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("shafinbd_hide_blocked");
+      return saved ? JSON.parse(saved) === "true" || saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
   // Currently playing channel
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
 
@@ -102,6 +122,16 @@ export default function useIPTVState() {
     localStorage.setItem("shafinbd_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
+  // Save blocked channels selection
+  useEffect(() => {
+    localStorage.setItem("shafinbd_blocked_channels", JSON.stringify(blockedChannels));
+  }, [blockedChannels]);
+
+  // Save hide blocked preference
+  useEffect(() => {
+    localStorage.setItem("shafinbd_hide_blocked", String(hideBlocked));
+  }, [hideBlocked]);
+
   // Auto clear error status messages after 5 seconds
   useEffect(() => {
     if (importStatus) {
@@ -128,6 +158,11 @@ export default function useIPTVState() {
   // Filter channels lists by category & search query
   const filteredChannels = useMemo(() => {
     return activeChannels.filter(chan => {
+      // Filter out auto-hidden blocked channels
+      if (hideBlocked && blockedChannels.includes(chan.id)) {
+        return false;
+      }
+
       // Category matches
       const categoryMatch = 
         selectedCategory === "All" ||
@@ -143,7 +178,7 @@ export default function useIPTVState() {
 
       return categoryMatch && searchMatch;
     });
-  }, [activeChannels, selectedCategory, searchQuery, favorites]);
+  }, [activeChannels, selectedCategory, searchQuery, favorites, blockedChannels, hideBlocked]);
 
   // --- ACTIONS & HANDLERS ---
 
@@ -339,6 +374,42 @@ export default function useIPTVState() {
     }
   };
 
+  // Handle auto-detect offline channel
+  const handleChannelOffline = (channelId: string) => {
+    setBlockedChannels(prev => {
+      if (prev.includes(channelId)) return prev;
+      const updated = [...prev, channelId];
+      
+      // Select another channel to play next if current active is now hidden
+      if (activeChannel?.id === channelId) {
+        // Find next non-blocked channel in our active list
+        const fallback = activeChannels.find(c => c.id !== channelId && !updated.includes(c.id));
+        if (fallback) {
+          setActiveChannel(fallback);
+        }
+      }
+
+      // Display dynamic temporary status notice
+      const channelObj = activeChannels.find(c => c.id === channelId);
+      const name = channelObj ? channelObj.name : "channel";
+      setImportStatus({ 
+        type: "info", 
+        text: `Offline channel "${name}" automatically hidden to keep list clean.` 
+      });
+
+      return updated;
+    });
+  };
+
+  // Reset/Clear all blocked channels
+  const handleClearBlockedChannels = () => {
+    setBlockedChannels([]);
+    setImportStatus({ 
+      type: "success", 
+      text: "Hidden channels list restored successfully!" 
+    });
+  };
+
   return {
     playlists,
     setPlaylists,
@@ -372,6 +443,10 @@ export default function useIPTVState() {
     setPlaylistNameInput,
     importStatus,
     setImportStatus,
+    blockedChannels,
+    setBlockedChannels,
+    hideBlocked,
+    setHideBlocked,
     activeChannels,
     categories,
     filteredChannels,
@@ -383,5 +458,7 @@ export default function useIPTVState() {
     handleM3UFileUpload,
     handleImportRemotePlaylist,
     handleClearHistory,
+    handleChannelOffline,
+    handleClearBlockedChannels,
   };
 }
