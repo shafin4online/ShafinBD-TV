@@ -20,6 +20,65 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 
 export default function App() {
+  // --- SECURITY ENHANCEMENTS (INSULATION & ACCESS DEFIANCE) ---
+  // Block typical element inspect mechanisms (right-click and DevTools keyboard shortcuts)
+  useEffect(() => {
+    // 1. Prevent Right-Click Context Menu
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    // 2. Prevent Developer Tools Keyboard Shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Key code or direct keys
+      const isF12 = e.key === "F12" || e.keyCode === 123;
+      
+      // Ctrl+Shift+I or Cmd+Opt+I (Chrome/Safari DevTools)
+      const isDevToolsShortCut = 
+        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.keyCode === 73)) ||
+        (e.metaKey && e.altKey && (e.key === "I" || e.key === "i" || e.keyCode === 73));
+
+      // Ctrl+Shift+J or Cmd+Opt+J (Console window)
+      const isConsoleShortcut = 
+        (e.ctrlKey && e.shiftKey && (e.key === "J" || e.key === "j" || e.keyCode === 74)) ||
+        (e.metaKey && e.altKey && (e.key === "J" || e.key === "j" || e.keyCode === 74));
+
+      // Ctrl+Shift+C or Cmd+Opt+C (Inspector element select)
+      const isInspectorShortcut = 
+        (e.ctrlKey && e.shiftKey && (e.key === "C" || e.key === "c" || e.keyCode === 67)) ||
+        (e.metaKey && e.altKey && (e.key === "C" || e.key === "c" || e.keyCode === 67));
+
+      // Ctrl+U or Cmd+Opt+U (View Page Source)
+      const isSourceCodeShortcut = 
+        (e.ctrlKey && (e.key === "U" || e.key === "u" || e.keyCode === 85)) ||
+        (e.metaKey && e.altKey && (e.key === "U" || e.key === "u" || e.keyCode === 85));
+
+      // Ctrl+S or Cmd+S (Save page)
+      const isSaveShortcut = 
+        (e.ctrlKey && (e.key === "S" || e.key === "s" || e.keyCode === 83)) ||
+        (e.metaKey && (e.key === "S" || e.key === "s" || e.keyCode === 83));
+
+      if (
+        isF12 || 
+        isDevToolsShortCut || 
+        isConsoleShortcut || 
+        isInspectorShortcut || 
+        isSourceCodeShortcut ||
+        isSaveShortcut
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   // --- STATE PERSISTENCE & INITIALIZATION ---
   
   // Custom uploaded playlists list
@@ -94,7 +153,8 @@ export default function App() {
   // Set default active channel if none loaded
   useEffect(() => {
     if (!activeChannel && activeChannels.length > 0) {
-      setActiveChannel(activeChannels[0]);
+      const defaultChannel = activeChannels.find(c => c.id === "fifa_plus_us") || activeChannels[0];
+      setActiveChannel(defaultChannel);
     }
   }, [activeChannels]);
 
@@ -369,13 +429,11 @@ export default function App() {
         {/* Left Side: Video Host & Configurations (8/12 Columns) */}
         <div 
           id="player-and-import-panel" 
-          className={`lg:col-span-8 flex flex-col gap-6 w-full ${
-            mobileActiveTab === "player" || mobileActiveTab === "playlists" ? "flex" : "hidden lg:flex"
-          }`}
+          className="lg:col-span-8 flex flex-col gap-6 w-full"
         >
           
           {/* Main IPTV player */}
-          <div className={`${mobileActiveTab === "player" ? "block" : "hidden lg:block"}`}>
+          <div className="w-full sticky top-[57px] md:top-[73px] lg:top-24 z-30 lg:self-start">
             <IPTVPlayer 
               channel={activeChannel} 
               onAutoPlayFailed={() => {
