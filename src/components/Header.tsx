@@ -4,13 +4,15 @@
  */
 
 import React from "react";
-import { Tv, Globe, Plus } from "lucide-react";
+import { Tv, Globe, Plus, Download } from "lucide-react";
 
 export interface HeaderProps {
   playlistsCount: number;
+  showInstallBtn?: boolean;
+  onInstallClick?: () => void;
 }
 
-export default function Header({ playlistsCount }: HeaderProps) {
+export default function Header({ playlistsCount, showInstallBtn, onInstallClick }: HeaderProps) {
   return (
     <header id="shafinbd-app-header" className="sticky top-0 z-40 bg-zinc-950/85 backdrop-blur-md border-b border-white/5 relative">
       <div className="max-w-7xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -34,6 +36,18 @@ export default function Header({ playlistsCount }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* PWA Install Button */}
+          {showInstallBtn && (
+            <button
+              onClick={onInstallClick}
+              id="pwa-install-header-btn"
+              className="bg-gradient-to-tr from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition duration-200 flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 hover:scale-105 active:scale-95 whitespace-nowrap cursor-pointer animate-pulse"
+            >
+              <Download size={14} className="text-white animate-bounce" />
+              <span>App Install করুন</span>
+            </button>
+          )}
+
           {/* Quick stats indicator */}
           <div className="hidden md:flex items-center gap-2 bg-neutral-900 border border-white/5 rounded-xl px-3 py-1.5 text-xs text-neutral-300">
             <Globe className="text-cyan-400 shrink-0" size={14} />

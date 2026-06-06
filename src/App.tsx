@@ -5,10 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { 
-  Tv, 
-  Plus, 
-  AlertTriangle,
-  List
+  AlertTriangle
 } from "lucide-react";
 import { Channel, SavedPlaylist, PlayHistoryItem } from "./types";
 import { DEFAULT_CHANNELS } from "./data/defaultChannels";
@@ -18,6 +15,8 @@ import ChannelSidebar from "./components/ChannelSidebar";
 import PlaylistManager from "./components/PlaylistManager";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import MobileBottomNav from "./components/MobileBottomNav";
+import PWAInstallModal from "./components/PWAInstallModal";
 
 export default function App() {
   // --- SECURITY ENHANCEMENTS (INSULATION & ACCESS DEFIANCE) ---
@@ -138,6 +137,59 @@ export default function App() {
   const [playlistNameInput, setPlaylistNameInput] = useState("");
 
   const [importStatus, setImportStatus] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+
+  // --- PWA INSTALLATION SYSTEM ---
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [isInstallDocOpen, setIsInstallDocOpen] = useState(false);
+
+  useEffect(() => {
+    // Listen for the chrome prompt trigger
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+
+    // Check if running inside installed application window directly
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    if (!isStandalone) {
+      setShowInstallBtn(true);
+    }
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+      setIsInstallDocOpen(false);
+    };
+
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") {
+          setDeferredPrompt(null);
+          setShowInstallBtn(false);
+        }
+      } catch (err) {
+        console.error("Installation request failed", err);
+        setIsInstallDocOpen(true);
+      }
+    } else {
+      setIsInstallDocOpen(true);
+    }
+  };
 
   // --- DERIVED SENSORS & DATA AGGREGATION ---
 
@@ -421,7 +473,11 @@ export default function App() {
     <div id="shafinbd-tv-root" className="min-h-screen bg-[#050505] text-neutral-100 font-sans selection:bg-cyan-500 selection:text-neutral-950 flex flex-col antialiased">
       
       {/* 🚀 Sleek Header */}
-      <Header playlistsCount={playlists.length + 1} />
+      <Header 
+        playlistsCount={playlists.length + 1} 
+        showInstallBtn={showInstallBtn}
+        onInstallClick={handleInstallClick}
+      />
 
       {/* 💻 Main Layout Grid Block */}
       <main id="app-main-layout" className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 md:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pb-24 lg:pb-6">
@@ -551,51 +607,19 @@ export default function App() {
       </main>
 
       {/* 📱 Mobile & Tablet View bottom navigation menu bar */}
-      <nav id="mobile-bottom-nav" className="lg:hidden fixed bottom-5 left-5 right-5 z-50 bg-black/95 backdrop-blur-lg border border-white/10 rounded-2xl p-2 flex items-center justify-around shadow-2xl shadow-cyan-950/30">
-        <button
-          onClick={() => setMobileActiveTab("player")}
-          className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 outline-none select-none ${
-            mobileActiveTab === "player"
-              ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Tv size={16} className={mobileActiveTab === "player" ? "text-cyan-400 animate-pulse" : "text-slate-400"} />
-          <span className="text-[10px] font-bold tracking-wider uppercase">Watch</span>
-        </button>
-
-        <button
-          onClick={() => setMobileActiveTab("channels")}
-          className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 relative outline-none select-none ${
-            mobileActiveTab === "channels"
-              ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <span className="absolute top-2 right-1/4 flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
-          </span>
-          <List size={16} className={mobileActiveTab === "channels" ? "text-cyan-400" : "text-slate-400"} />
-          <span className="text-[10px] font-bold tracking-wider uppercase">Stations</span>
-        </button>
-
-        <button
-          onClick={() => setMobileActiveTab("playlists")}
-          className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 outline-none select-none ${
-            mobileActiveTab === "playlists"
-              ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Plus size={16} className={mobileActiveTab === "playlists" ? "text-cyan-400" : "text-slate-400"} />
-          <span className="text-[10px] font-bold tracking-wider uppercase">Feeds</span>
-        </button>
-      </nav>
+      <MobileBottomNav 
+        mobileActiveTab={mobileActiveTab}
+        setMobileActiveTab={setMobileActiveTab}
+      />
 
       {/* 🔮 Deep Footer */}
       <Footer />
 
+      {/* 📱 PWA Manual Installation Walkthrough Dialog Modal */}
+      <PWAInstallModal 
+        isOpen={isInstallDocOpen}
+        onClose={() => setIsInstallDocOpen(false)}
+      />
     </div>
   );
 }

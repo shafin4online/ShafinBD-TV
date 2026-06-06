@@ -1,0 +1,26 @@
+{
+  "name": "ShafinBD TV",
+  "short_name": "ShafinBD TV",
+  "description": "Premium IPTV live streaming web application with dynamic channel player, category filtering, search, and playlist importing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/d/150fDRhIsgzScqe38M4QoLlTpZ3rrTTSY",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/d/1NAikBGp5ajKyeayACd2T84EysgDvhZIE",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["news", "entertainment", "sports"],
+  "prefer_related_applications": false
+}
