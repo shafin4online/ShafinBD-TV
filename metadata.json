@@ -1,0 +1,6 @@
+{
+  "name": "shafinbd tv",
+  "description": "Production-ready IPTV live streaming web application with dynamic m3u8 channel player, category filtering, search, and playlist importing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
