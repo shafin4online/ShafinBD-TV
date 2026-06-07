@@ -13,7 +13,7 @@ export default function AdminLogin({ onAuthenticated, onClose }: AdminLoginProps
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() === "ShafinHasnat" && password === "Hasnat123") {
+    if (username.trim() === "shafinbd@gmail.com" && password === "Rashidul123") {
       onAuthenticated();
       setAuthError("");
     } else {
