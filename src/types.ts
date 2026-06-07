@@ -37,9 +37,15 @@ export interface PopupConfig {
   fbPopupMinutes: number;
   fbPopupText: string;
   facebookLink: string;
+  fbPopupEnabled: boolean;
   customPopupMinutes: number;
   customPopupText: string;
   customPopupLink: string;
+  customPopupEnabled: boolean;
+  fbShareMinutes: number;
+  fbShareText: string;
+  fbSharePostLink: string;
+  fbShareEnabled: boolean;
   controlSystemEnabled: boolean;
 }
 

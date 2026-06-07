@@ -18,9 +18,15 @@ export default function PopupControlTab({
     fbPopupMinutes: popupConfig?.fbPopupMinutes ?? 15,
     fbPopupText: popupConfig?.fbPopupText ?? "",
     facebookLink: popupConfig?.facebookLink ?? "",
+    fbPopupEnabled: popupConfig?.fbPopupEnabled ?? true,
     customPopupMinutes: popupConfig?.customPopupMinutes ?? 30,
     customPopupText: popupConfig?.customPopupText ?? "",
     customPopupLink: popupConfig?.customPopupLink ?? "",
+    customPopupEnabled: popupConfig?.customPopupEnabled ?? true,
+    fbShareMinutes: popupConfig?.fbShareMinutes ?? 20,
+    fbShareText: popupConfig?.fbShareText ?? "",
+    fbSharePostLink: popupConfig?.fbSharePostLink ?? "",
+    fbShareEnabled: popupConfig?.fbShareEnabled ?? false,
     controlSystemEnabled: popupConfig?.controlSystemEnabled ?? false,
   });
 
@@ -31,9 +37,15 @@ export default function PopupControlTab({
         fbPopupMinutes: popupConfig.fbPopupMinutes,
         fbPopupText: popupConfig.fbPopupText,
         facebookLink: popupConfig.facebookLink,
+        fbPopupEnabled: popupConfig.fbPopupEnabled ?? true,
         customPopupMinutes: popupConfig.customPopupMinutes,
         customPopupText: popupConfig.customPopupText,
         customPopupLink: popupConfig.customPopupLink,
+        customPopupEnabled: popupConfig.customPopupEnabled ?? true,
+        fbShareMinutes: popupConfig.fbShareMinutes ?? 20,
+        fbShareText: popupConfig.fbShareText ?? "",
+        fbSharePostLink: popupConfig.fbSharePostLink ?? "",
+        fbShareEnabled: popupConfig.fbShareEnabled ?? false,
         controlSystemEnabled: popupConfig.controlSystemEnabled,
       });
     }
@@ -45,9 +57,15 @@ export default function PopupControlTab({
       fbPopupMinutes: Number(popupFormData.fbPopupMinutes),
       fbPopupText: popupFormData.fbPopupText.trim(),
       facebookLink: popupFormData.facebookLink.trim(),
+      fbPopupEnabled: popupFormData.fbPopupEnabled,
       customPopupMinutes: Number(popupFormData.customPopupMinutes),
       customPopupText: popupFormData.customPopupText.trim(),
       customPopupLink: popupFormData.customPopupLink.trim(),
+      customPopupEnabled: popupFormData.customPopupEnabled,
+      fbShareMinutes: Number(popupFormData.fbShareMinutes),
+      fbShareText: popupFormData.fbShareText.trim(),
+      fbSharePostLink: popupFormData.fbSharePostLink.trim(),
+      fbShareEnabled: popupFormData.fbShareEnabled,
       controlSystemEnabled: popupFormData.controlSystemEnabled,
     });
   };
@@ -83,12 +101,27 @@ export default function PopupControlTab({
           
           {/* CARD 1: Facebook Page Follow */}
           <div className="bg-zinc-950/80 rounded-xl border border-white/5 p-5 space-y-4">
-            <div className="flex items-center gap-2.5 border-b border-white/5 pb-2.5">
-              <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-xs uppercase font-mono">1</div>
-              <div>
-                <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wide font-medium">Facebook Follow Gate (Trigger A)</h4>
-                <p className="text-[10px] text-slate-400 font-mono mt-0.5">Prompt users to connect/follow on Facebook</p>
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-xs uppercase font-mono">1</div>
+                <div>
+                  <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wide">Facebook Follow Gate (Trigger A)</h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Prompt users to connect/follow on Facebook</p>
+                </div>
               </div>
+
+              {/* Individual Toggle Switch */}
+              <button
+                type="button"
+                onClick={() => setPopupFormData(prev => ({ ...prev, fbPopupEnabled: !prev.fbPopupEnabled }))}
+                className={`px-2.5 py-1 rounded-md text-[9px] font-mono font-bold transition-all border cursor-pointer ${
+                  popupFormData.fbPopupEnabled 
+                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/25" 
+                    : "bg-zinc-800 text-slate-500 border-white/5"
+                }`}
+              >
+                {popupFormData.fbPopupEnabled ? "ACTIVE" : "INACTIVE"}
+              </button>
             </div>
 
             <div className="space-y-1.5">
@@ -134,12 +167,27 @@ export default function PopupControlTab({
 
           {/* CARD 2: Custom Notification Link */}
           <div className="bg-zinc-950/80 rounded-xl border border-white/5 p-5 space-y-4">
-            <div className="flex items-center gap-2.5 border-b border-white/5 pb-2.5">
-              <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-xs uppercase font-mono">2</div>
-              <div>
-                <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wide font-medium">Custom Notification Trigger B</h4>
-                <p className="text-[10px] text-slate-400 font-mono mt-0.5">Redirect users to any notice/partner page</p>
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-xs uppercase font-mono">2</div>
+                <div>
+                  <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wide">Custom Notification Trigger B</h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Redirect users to any notice/partner page</p>
+                </div>
               </div>
+
+              {/* Individual Toggle Switch */}
+              <button
+                type="button"
+                onClick={() => setPopupFormData(prev => ({ ...prev, customPopupEnabled: !prev.customPopupEnabled }))}
+                className={`px-2.5 py-1 rounded-md text-[9px] font-mono font-bold transition-all border cursor-pointer ${
+                  popupFormData.customPopupEnabled 
+                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/25" 
+                    : "bg-zinc-800 text-slate-500 border-white/5"
+                }`}
+              >
+                {popupFormData.customPopupEnabled ? "ACTIVE" : "INACTIVE"}
+              </button>
             </div>
 
             <div className="space-y-1.5">
@@ -183,6 +231,75 @@ export default function PopupControlTab({
             </div>
           </div>
 
+          {/* CARD 3: Facebook Post Share (Dedicated Popup Trigger C) */}
+          <div className="bg-zinc-950/80 rounded-xl border border-white/5 p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-xs uppercase font-mono">3</div>
+                <div>
+                  <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wide">Facebook Share Guard (Trigger C) - Dedicated Popup</h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Prompt users to share a dedicated Facebook post directly onto their timeline to unlock the video player.</p>
+                </div>
+              </div>
+
+              {/* Individual Toggle Switch */}
+              <button
+                type="button"
+                onClick={() => setPopupFormData(prev => ({ ...prev, fbShareEnabled: !prev.fbShareEnabled }))}
+                className={`px-2.5 py-1 rounded-md text-[9px] font-mono font-bold transition-all border cursor-pointer ${
+                  popupFormData.fbShareEnabled 
+                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/25" 
+                    : "bg-zinc-800 text-slate-500 border-white/5"
+                }`}
+              >
+                {popupFormData.fbShareEnabled ? "ACTIVE" : "INACTIVE"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Trigger Threshold (Minutes)</label>
+                <input 
+                  id="popup-share-minutes"
+                  type="number" 
+                  min="1"
+                  value={popupFormData.fbShareMinutes}
+                  onChange={(e) => setPopupFormData({...popupFormData, fbShareMinutes: Math.max(1, Number(e.target.value))})}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500 font-mono transition"
+                  required
+                />
+                <p className="text-[10px] text-slate-500 leading-normal">Dedicated Facebook share popup covers screen exactly after this many minutes.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Predefined Facebook Post Link To Share</label>
+                <input 
+                  id="popup-share-post-link"
+                  type="url" 
+                  value={popupFormData.fbSharePostLink}
+                  onChange={(e) => setPopupFormData({...popupFormData, fbSharePostLink: e.target.value})}
+                  placeholder="e.g. https://www.facebook.com/permalink.php?story_fbid=123&id=456"
+                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500 font-sans transition"
+                  required
+                />
+                <p className="text-[10px] text-slate-500">Provide the direct URL address of the Facebook post you want users to share on their profiles.</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Popup Message text for Sharing Gate</label>
+              <textarea 
+                id="popup-share-text"
+                rows={3}
+                value={popupFormData.fbShareText}
+                onChange={(e) => setPopupFormData({...popupFormData, fbShareText: e.target.value})}
+                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500 font-sans transition resize-none leading-relaxed"
+                required
+              />
+              <p className="text-[10px] text-slate-500">Provide Bengali or English instructional messages guiding user on performing the profile share.</p>
+            </div>
+          </div>
+
         </div>
 
         {importStatus && (
@@ -206,6 +323,7 @@ export default function PopupControlTab({
                 localStorage.setItem("shafinbd_watch_seconds", "0");
                 localStorage.removeItem("shafinbd_fb_dismissed");
                 localStorage.removeItem("shafinbd_custom_dismissed");
+                localStorage.removeItem("shafinbd_fb_share_dismissed");
                 alert("Done! Watch time counters reset successfully. Reloading...");
                 window.location.reload();
               }

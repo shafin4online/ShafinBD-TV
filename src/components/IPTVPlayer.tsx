@@ -28,8 +28,10 @@ interface IPTVPlayerProps {
   popupConfig: any;
   showFbPopup: boolean;
   showCustomPopup: boolean;
+  showFbSharePopup: boolean;
   onFbDismiss: () => void;
   onCustomDismiss: () => void;
+  onFbShareDismiss: () => void;
 }
 
 export default function IPTVPlayer({ 
@@ -38,8 +40,10 @@ export default function IPTVPlayer({
   popupConfig,
   showFbPopup,
   showCustomPopup,
+  showFbSharePopup,
   onFbDismiss,
-  onCustomDismiss
+  onCustomDismiss,
+  onFbShareDismiss
 }: IPTVPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -50,8 +54,10 @@ export default function IPTVPlayer({
   const [isVerifyingFb, setIsVerifyingFb] = useState(false);
   const [hasClickedCustomLink, setHasClickedCustomLink] = useState(false);
   const [isVerifyingCustom, setIsVerifyingCustom] = useState(false);
+  const [hasClickedShareLink, setHasClickedShareLink] = useState(false);
+  const [isVerifyingShare, setIsVerifyingShare] = useState(false);
 
-  const isGated = showFbPopup || showCustomPopup;
+  const isGated = showFbPopup || showCustomPopup || showFbSharePopup;
 
   // Reset verification states if popup flags turn false or components mount
   useEffect(() => {
@@ -67,6 +73,13 @@ export default function IPTVPlayer({
       setIsVerifyingCustom(false);
     }
   }, [showCustomPopup]);
+
+  useEffect(() => {
+    if (!showFbSharePopup) {
+      setHasClickedShareLink(false);
+      setIsVerifyingShare(false);
+    }
+  }, [showFbSharePopup]);
 
   // States for player controls
   const [isPlaying, setIsPlaying] = useState(false);
@@ -768,6 +781,78 @@ export default function IPTVPlayer({
                           className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-[11px] font-extrabold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1 transition-all shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
                         >
                           <span>২. বিজ্ঞপ্তি সম্পূর্ণ পড়েছি (আনলক করুন)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showFbSharePopup && (
+              <div id="embedded-fb-share-popup" className="max-w-[400px] w-full bg-zinc-950/95 border border-white/10 rounded-2xl p-4 sm:p-5 text-center space-y-4 shadow-[0_0_30px_rgba(6,182,212,0.3)] relative backdrop-blur-md animate-fade-in mx-2">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto text-cyan-400">
+                  <svg className="w-5 h-5 fill-current animate-bounce" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold font-mono tracking-widest text-cyan-400 uppercase bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-500/20">Facebook Share Guard</span>
+                  <h2 className="text-sm font-bold tracking-tight text-white mt-1">ফেসবুক পোস্ট শেয়ার সম্পন্ন করুন!</h2>
+                  <p className="text-[11px] text-slate-300 leading-relaxed max-h-[70px] overflow-y-auto px-1">
+                    {popupConfig?.fbShareText || "আমাদেক সাপোর্ট করতে এবং ভিডিও দেখা চালিয়ে যেতে এই ফেসবুক পোস্টটি আপনার প্রোফাইলে শেয়ার করুন! শেয়ার সম্পূর্ণ হলে ভিডিও আবার সচল হয়ে যাবে।"}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-zinc-900/60 rounded-xl border border-white/5 text-[10px] text-slate-400 text-left leading-normal space-y-1">
+                  <div className="font-mono text-cyan-400 font-extrabold uppercase text-[9px] tracking-wider">নির্দেশনা ও রুলস:</div>
+                  <div>নিচের লিংকে ক্লিক করে আমাদের ফেসবুক পোস্টটি আপনার ওয়ালে পাবলিকলি শেয়ার করুন এবং শেয়ার সম্পন্ন হলে ভিডিওটি আবার আনলক হয়ে প্লে হবে।</div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {/* Step 1 Button */}
+                  {!hasClickedShareLink ? (
+                    <button
+                      onClick={() => {
+                        const postUrl = popupConfig?.fbSharePostLink || "https://www.facebook.com/yourpage";
+                        const encodedUrl = encodeURIComponent(postUrl);
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`, "_blank", "noopener,noreferrer");
+                        setHasClickedShareLink(true);
+                      }}
+                      className="w-full bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-[11px] font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 duration-200 cursor-pointer animate-pulse"
+                    >
+                      <span>১. ফেসবুকে শেয়ার করুন</span>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 10.742l4.828-2.414m0 0a3 3 0 100-5.002 3 3 0 000 5.002zm0 3.832L8.684 14.58m0 0a3 3 0 100 5.002 3 3 0 000-5.002z" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <div className="w-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      <span>✓ ফেসবুক শেয়ার সংলাপ খোলা হয়েছে</span>
+                    </div>
+                  )}
+
+                  {/* Step 2 Verification Actions */}
+                  {hasClickedShareLink && (
+                    <div className="pt-1 transition-all duration-300">
+                      {isVerifyingShare ? (
+                        <div className="w-full bg-zinc-900/80 border border-cyan-500/10 text-slate-300 text-[11px] font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2">
+                          <RefreshCw size={12} className="animate-spin text-cyan-400" />
+                          <span className="font-mono text-[10px]">শেয়ার স্ট্যাটাস যাচাই করা হচ্ছে...</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setIsVerifyingShare(true);
+                            setTimeout(() => {
+                              onFbShareDismiss();
+                            }, 1800);
+                          }}
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-[11px] font-extrabold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1 transition-all shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
+                        >
+                          <span>২. আমি শেয়ার করেছি (ভিডিও আনলক করুন)</span>
                         </button>
                       )}
                     </div>

@@ -7,8 +7,10 @@ interface VideoSectionProps {
   popupConfig: any;
   showFbPopup: boolean;
   showCustomPopup: boolean;
+  showFbSharePopup: boolean;
   onFbDismiss: () => void;
   onCustomDismiss: () => void;
+  onFbShareDismiss: () => void;
 }
 
 export default function VideoSection({ 
@@ -16,8 +18,10 @@ export default function VideoSection({
   popupConfig,
   showFbPopup,
   showCustomPopup,
+  showFbSharePopup,
   onFbDismiss,
-  onCustomDismiss
+  onCustomDismiss,
+  onFbShareDismiss
 }: VideoSectionProps) {
   return (
     <div className="w-full relative lg:sticky lg:top-24 z-30 lg:self-start">
@@ -26,8 +30,10 @@ export default function VideoSection({
         popupConfig={popupConfig}
         showFbPopup={showFbPopup}
         showCustomPopup={showCustomPopup}
+        showFbSharePopup={showFbSharePopup}
         onFbDismiss={onFbDismiss}
         onCustomDismiss={onCustomDismiss}
+        onFbShareDismiss={onFbShareDismiss}
         onAutoPlayFailed={() => {
           // Custom prompt handled gracefully by player internally
         }}

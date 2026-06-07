@@ -94,6 +94,9 @@ export default function App() {
   const [customDismissed, setCustomDismissed] = React.useState(() => {
     return localStorage.getItem("shafinbd_custom_dismissed") === "true";
   });
+  const [fbShareDismissed, setFbShareDismissed] = React.useState(() => {
+    return localStorage.getItem("shafinbd_fb_share_dismissed") === "true";
+  });
 
   // Sync interval loop tracking stream active playback time in background
   React.useEffect(() => {
@@ -105,8 +108,9 @@ export default function App() {
         
         // Block watch stopwatch accumulation if a locked gate state is currently active on render
         const isCurrentlyLocked = (
-          (watchSeconds >= popupConfig.fbPopupMinutes * 60 && !fbDismissed) ||
-          (watchSeconds >= popupConfig.customPopupMinutes * 60 && !customDismissed)
+          (popupConfig.fbPopupEnabled && watchSeconds >= popupConfig.fbPopupMinutes * 60 && !fbDismissed) ||
+          (popupConfig.customPopupEnabled && watchSeconds >= popupConfig.customPopupMinutes * 60 && !customDismissed) ||
+          (popupConfig.fbShareEnabled && watchSeconds >= popupConfig.fbShareMinutes * 60 && !fbShareDismissed)
         );
 
         if (isVideoPlaying && !isCurrentlyLocked) {
@@ -119,7 +123,7 @@ export default function App() {
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [popupConfig, fbDismissed, customDismissed, watchSeconds]);
+  }, [popupConfig, fbDismissed, customDismissed, fbShareDismissed, watchSeconds]);
 
   // Handle exiting admin panel cleanly back to player
   const handleExitAdmin = () => {
@@ -146,12 +150,19 @@ export default function App() {
 
   // Determine active dynamic popups
   const showFbPopup = popupConfig?.controlSystemEnabled && 
+                       popupConfig?.fbPopupEnabled &&
                        (watchSeconds >= popupConfig.fbPopupMinutes * 60) && 
                        !fbDismissed;
 
   const showCustomPopup = popupConfig?.controlSystemEnabled && 
+                           popupConfig?.customPopupEnabled &&
                            (watchSeconds >= popupConfig.customPopupMinutes * 60) && 
                            !customDismissed;
+
+  const showFbSharePopup = popupConfig?.controlSystemEnabled && 
+                            popupConfig?.fbShareEnabled &&
+                            (watchSeconds >= popupConfig.fbShareMinutes * 60) && 
+                            !fbShareDismissed;
 
   const handleFbClickDismiss = () => {
     setFbDismissed(true);
@@ -161,6 +172,11 @@ export default function App() {
   const handleCustomClickDismiss = () => {
     setCustomDismissed(true);
     localStorage.setItem("shafinbd_custom_dismissed", "true");
+  };
+
+  const handleFbShareClickDismiss = () => {
+    setFbShareDismissed(true);
+    localStorage.setItem("shafinbd_fb_share_dismissed", "true");
   };
 
   if (isAdminRoute) {
@@ -209,8 +225,10 @@ export default function App() {
             popupConfig={popupConfig}
             showFbPopup={showFbPopup}
             showCustomPopup={showCustomPopup}
+            showFbSharePopup={showFbSharePopup}
             onFbDismiss={handleFbClickDismiss}
             onCustomDismiss={handleCustomClickDismiss}
+            onFbShareDismiss={handleFbShareClickDismiss}
           />
 
           {/* Quick Playlist Selection Bar & Info Statuses */}

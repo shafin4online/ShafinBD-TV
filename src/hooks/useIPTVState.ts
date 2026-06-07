@@ -11,9 +11,15 @@ export default function useIPTVState() {
     fbPopupMinutes: 15,
     fbPopupText: "ভিডিও দেখা কন্টিনিউ করতে আমাদের অফিশিয়াল ফেসবুক পেজটি ফলো এবং শেয়ার করুন। নিচের লিংকে ক্লিক করে পেজ ফলো করলেই ভিডিও আবার চালু হয়ে যাবে!",
     facebookLink: "https://www.facebook.com/yourpage",
+    fbPopupEnabled: true,
     customPopupMinutes: 30,
     customPopupText: "আমাদের স্পন্সর ওয়েবসাইট ভিজিট করুন এবং ভিডিও কন্টিনিউ করুন!",
     customPopupLink: "https://example.com/sponsor",
+    customPopupEnabled: true,
+    fbShareMinutes: 20,
+    fbShareText: "আমাদেক সাপোর্ট করতে এবং ভিডিও দেখা চালিয়ে যেতে এই ফেসবুক পোস্টটি আপনার প্রোফাইলে শেয়ার করুন! শেয়ার সম্পূর্ণ হলে ভিডিও আবার সচল হয়ে যাবে।",
+    fbSharePostLink: "https://www.facebook.com/yourpage",
+    fbShareEnabled: false,
     controlSystemEnabled: false
   });
 
@@ -27,9 +33,15 @@ export default function useIPTVState() {
           fbPopupMinutes: typeof data.fbPopupMinutes === "number" ? data.fbPopupMinutes : 15,
           fbPopupText: typeof data.fbPopupText === "string" ? data.fbPopupText : "ভিডিও দেখা কন্টিনিউ করতে আমাদের অফিশিয়াল ফেসবুক পেজটি ফলো এবং শেয়ার করুন। নিচের লিংকে ক্লিক করে পেজ ফলো করলেই ভিডিও আবার চালু হয়ে যাবে!",
           facebookLink: typeof data.facebookLink === "string" ? data.facebookLink : "https://www.facebook.com/yourpage",
+          fbPopupEnabled: typeof data.fbPopupEnabled === "boolean" ? data.fbPopupEnabled : true,
           customPopupMinutes: typeof data.customPopupMinutes === "number" ? data.customPopupMinutes : 30,
           customPopupText: typeof data.customPopupText === "string" ? data.customPopupText : "আমাদের স্পন্সর ওয়েবসাইট ভিজিট করুন এবং ভিডিও কন্টিনিউ করুন!",
           customPopupLink: typeof data.customPopupLink === "string" ? data.customPopupLink : "https://example.com/sponsor",
+          customPopupEnabled: typeof data.customPopupEnabled === "boolean" ? data.customPopupEnabled : true,
+          fbShareMinutes: typeof data.fbShareMinutes === "number" ? data.fbShareMinutes : 20,
+          fbShareText: typeof data.fbShareText === "string" ? data.fbShareText : "আমাদেক সাপোর্ট করতে এবং ভিডিও দেখা চালিয়ে যেতে এই ফেসবুক পোস্টটি আপনার প্রোফাইলে শেয়ার করুন! শেয়ার সম্পূর্ণ হলে ভিডিও আবার সচল হয়ে যাবে।",
+          fbSharePostLink: typeof data.fbSharePostLink === "string" ? data.fbSharePostLink : "https://www.facebook.com/yourpage",
+          fbShareEnabled: typeof data.fbShareEnabled === "boolean" ? data.fbShareEnabled : false,
           controlSystemEnabled: typeof data.controlSystemEnabled === "boolean" ? data.controlSystemEnabled : false
         });
       }
