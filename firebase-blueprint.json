@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "channel": {
+      "title": "Channel",
+      "description": "An IPTV stream channel stored in the cloud-synced database",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the channel"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the channel"
+        },
+        "url": {
+          "type": "string",
+          "description": "M3U8 stream URL or MP4 source URL"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category group of the channel for categorization"
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "Optional HTTPS image URL to represent the station channel logo"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional text description of the channel"
+        },
+        "groupTitle": {
+          "type": "string",
+          "description": "Optional parent network title group"
+        },
+        "order": {
+          "type": "integer",
+          "description": "Order rank weight to structure channels position within lists"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp identifier"
+        }
+      },
+      "required": ["id", "name", "url", "category"]
+    }
+  },
+  "firestore": {
+    "channels": {
+      "schema": "channel",
+      "description": "Collection of custom IPTV channels synced across all players"
+    }
+  }
+}

@@ -25,10 +25,9 @@ import PlayerControls from "./PlayerControls";
 interface IPTVPlayerProps {
   channel: Channel | null;
   onAutoPlayFailed?: () => void;
-  onChannelOffline?: (channelId: string) => void;
 }
 
-export default function IPTVPlayer({ channel, onAutoPlayFailed, onChannelOffline }: IPTVPlayerProps) {
+export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -285,9 +284,6 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed, onChannelOffline
               hls.destroy();
               setIsLoading(false);
               setIsPlaying(false);
-              if (onChannelOffline && channel) {
-                onChannelOffline(channel.id);
-              }
               break;
           }
         }
@@ -308,9 +304,6 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed, onChannelOffline
         setErrorMsg("Failed to open the live stream natively. If you are on Desktop, please ensure modern CORS permissions allow loading.");
         setIsLoading(false);
         setIsPlaying(false);
-        if (onChannelOffline && channel) {
-          onChannelOffline(channel.id);
-        }
       });
     } else {
       setErrorMsg("Your web browser is not equipped to play HLS (.m3u8) video streams directly. Please try a modern browser like Chrome, Edge, or Safari.");

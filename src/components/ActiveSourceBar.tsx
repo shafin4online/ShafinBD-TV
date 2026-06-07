@@ -50,7 +50,7 @@ export default function ActiveSourceBar({
             <option value="default">🌍 default stations (Public)</option>
             {playlists.map((ply) => (
               <option key={ply.id} value={ply.id}>
-                📂 {ply.name} ({ply.channels.length})
+                📂 {ply.name} ({ply.channels?.length || 0})
               </option>
             ))}
           </select>

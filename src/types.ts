@@ -11,6 +11,8 @@ export interface Channel {
   logoUrl?: string;
   description?: string;
   groupTitle?: string;
+  order?: number;
+  createdAt?: string;
 }
 
 export interface PlayHistoryItem {

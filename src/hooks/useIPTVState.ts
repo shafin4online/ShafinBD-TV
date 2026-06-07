@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Channel, SavedPlaylist, PlayHistoryItem } from "../types";
 import { DEFAULT_CHANNELS } from "../data/defaultChannels";
 import { parseM3U } from "../utils/m3uParser";
+import { collection, onSnapshot, query, doc, setDoc, deleteDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { db } from "../utils/firebase";
 
 export default function useIPTVState() {
   // --- STATE PERSISTENCE & INITIALIZATION ---
@@ -10,7 +12,16 @@ export default function useIPTVState() {
   const [playlists, setPlaylists] = useState<SavedPlaylist[]>(() => {
     try {
       const saved = localStorage.getItem("shafinbd_playlists");
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((p: any) => ({
+            ...p,
+            channels: p && Array.isArray(p.channels) ? p.channels : []
+          }));
+        }
+      }
+      return [];
     } catch {
       return [];
     }
@@ -21,11 +32,138 @@ export default function useIPTVState() {
     return localStorage.getItem("shafinbd_active_playlist_id") || "default";
   });
 
+  // --- CLOUD FIREBASE SYNC STATES & MUTATORS ---
+  const [cloudChannels, setCloudChannels] = useState<Channel[]>([]);
+  const [isLoadingCloud, setIsLoadingCloud] = useState(true);
+
+  // Load cloud channel lists reactively in real-time
+  useEffect(() => {
+    const q = query(collection(db, "channels"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Channel[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as Channel);
+      });
+
+      // Sort by order weight (lowest first), then name secondary
+      list.sort((a, b) => {
+        const orderA = typeof a.order === "number" ? a.order : 99999;
+        const orderB = typeof b.order === "number" ? b.order : 99999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+
+      setCloudChannels(list);
+      setIsLoadingCloud(false);
+    }, (error) => {
+      console.error("Firestore onSnapshot error:", error);
+      setIsLoadingCloud(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync / seed default offline library to cloud database
+  const handleSeedDefaultChannels = async () => {
+    try {
+      setImportStatus({ type: "info", text: "Seeding default channels..." });
+      const batch = writeBatch(db);
+      DEFAULT_CHANNELS.forEach((chan, idx) => {
+        const docRef = doc(db, "channels", chan.id);
+        batch.set(docRef, {
+          name: chan.name,
+          url: chan.url,
+          category: chan.category,
+          logoUrl: chan.logoUrl || "",
+          description: chan.description || "",
+          groupTitle: chan.groupTitle || "",
+          order: idx,
+          createdAt: new Date().toISOString()
+        });
+      });
+      await batch.commit();
+      setImportStatus({ type: "success", text: "Successfully pre-seeded default channels to server!" });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Failed to seed database: ${err.message}` });
+    }
+  };
+
+  // Add a new channel to Firestore
+  const handleAddCloudChannel = async (chan: Omit<Channel, "id">) => {
+    try {
+      const newId = `chan_${Date.now()}`;
+      const docRef = doc(db, "channels", newId);
+      
+      // Calculate max order to append at bottom
+      const maxOrder = cloudChannels.reduce((max, c) => Math.max(max, c.order || 0), 0);
+
+      await setDoc(docRef, {
+        name: chan.name,
+        url: chan.url,
+        category: chan.category,
+        logoUrl: chan.logoUrl || "",
+        description: chan.description || "",
+        groupTitle: chan.groupTitle || "",
+        order: maxOrder + 1,
+        createdAt: new Date().toISOString()
+      });
+      setImportStatus({ type: "success", text: `Channel "${chan.name}" created successfully!` });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Error: ${err.message}` });
+    }
+  };
+
+  // Update channel properties in Firestore
+  const handleUpdateCloudChannel = async (id: string, fields: Partial<Channel>) => {
+    try {
+      const docRef = doc(db, "channels", id);
+      await updateDoc(docRef, fields);
+      setImportStatus({ type: "success", text: "Channel information updated successfully!" });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Error: ${err.message}` });
+    }
+  };
+
+  // Delete channel from Firestore
+  const handleDeleteCloudChannel = async (id: string) => {
+    try {
+      const docRef = doc(db, "channels", id);
+      await deleteDoc(docRef);
+      setImportStatus({ type: "success", text: "Channel deleted from cloud database successfully." });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Error: ${err.message}` });
+    }
+  };
+
+  // Re-save entire list ordering
+  const handleReorderCloudChannels = async (reordered: Channel[]) => {
+    try {
+      const batch = writeBatch(db);
+      reordered.forEach((chan, idx) => {
+        const docRef = doc(db, "channels", chan.id);
+        batch.update(docRef, { order: idx });
+      });
+      await batch.commit();
+      setImportStatus({ type: "success", text: "Feeds organization sorted successfully!" });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Sorting error: ${err.message}` });
+    }
+  };
+
   // Watch history list
   const [history, setHistory] = useState<PlayHistoryItem[]>(() => {
     try {
       const saved = localStorage.getItem("shafinbd_history");
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+      return [];
     } catch {
       return [];
     }
@@ -35,29 +173,13 @@ export default function useIPTVState() {
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("shafinbd_favorites");
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+      return [];
     } catch {
       return [];
-    }
-  });
-
-  // Blocked / offline channels list
-  const [blockedChannels, setBlockedChannels] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("shafinbd_blocked_channels");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Toggle to hide blocked / dead channels automatically from listing
-  const [hideBlocked, setHideBlocked] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem("shafinbd_hide_blocked");
-      return saved ? JSON.parse(saved) === "true" || saved === "true" : true;
-    } catch {
-      return true;
     }
   });
 
@@ -85,18 +207,18 @@ export default function useIPTVState() {
 
   // --- DERIVED DATA ---
 
-  // Get active channels list based on selected playlist
+  // Get active channels list based on selected playlist (supports cloud syncing falling back to default)
   const activeChannels = useMemo(() => {
     if (activePlaylistId === "default") {
-      return DEFAULT_CHANNELS;
+      return cloudChannels.length > 0 ? cloudChannels : (DEFAULT_CHANNELS || []);
     }
-    const matching = playlists.find(p => p.id === activePlaylistId);
-    return matching ? matching.channels : DEFAULT_CHANNELS;
-  }, [activePlaylistId, playlists]);
+    const matching = (playlists || []).find(p => p.id === activePlaylistId);
+    return matching && Array.isArray(matching.channels) ? matching.channels : (cloudChannels.length > 0 ? cloudChannels : DEFAULT_CHANNELS || []);
+  }, [activePlaylistId, playlists, cloudChannels]);
 
   // Set default active channel if none loaded
   useEffect(() => {
-    if (!activeChannel && activeChannels.length > 0) {
+    if (!activeChannel && activeChannels && activeChannels.length > 0) {
       const defaultChannel = activeChannels.find(c => c.id === "fifa_plus_us") || activeChannels[0];
       setActiveChannel(defaultChannel);
     }
@@ -121,16 +243,6 @@ export default function useIPTVState() {
   useEffect(() => {
     localStorage.setItem("shafinbd_favorites", JSON.stringify(favorites));
   }, [favorites]);
-
-  // Save blocked channels selection
-  useEffect(() => {
-    localStorage.setItem("shafinbd_blocked_channels", JSON.stringify(blockedChannels));
-  }, [blockedChannels]);
-
-  // Save hide blocked preference
-  useEffect(() => {
-    localStorage.setItem("shafinbd_hide_blocked", String(hideBlocked));
-  }, [hideBlocked]);
 
   // Auto clear error status messages after 5 seconds
   useEffect(() => {
@@ -158,11 +270,6 @@ export default function useIPTVState() {
   // Filter channels lists by category & search query
   const filteredChannels = useMemo(() => {
     return activeChannels.filter(chan => {
-      // Filter out auto-hidden blocked channels
-      if (hideBlocked && blockedChannels.includes(chan.id)) {
-        return false;
-      }
-
       // Category matches
       const categoryMatch = 
         selectedCategory === "All" ||
@@ -178,7 +285,7 @@ export default function useIPTVState() {
 
       return categoryMatch && searchMatch;
     });
-  }, [activeChannels, selectedCategory, searchQuery, favorites, blockedChannels, hideBlocked]);
+  }, [activeChannels, selectedCategory, searchQuery, favorites]);
 
   // --- ACTIONS & HANDLERS ---
 
@@ -210,7 +317,7 @@ export default function useIPTVState() {
     setSearchQuery("");
     
     const targetList = playlistId === "default" 
-      ? DEFAULT_CHANNELS 
+      ? (cloudChannels.length > 0 ? cloudChannels : DEFAULT_CHANNELS) 
       : playlists.find(p => p.id === playlistId)?.channels || [];
       
     if (targetList.length > 0) {
@@ -238,8 +345,9 @@ export default function useIPTVState() {
       if (activePlaylistId === playlistId) {
         setActivePlaylistId("default");
         setSelectedCategory("All");
-        if (DEFAULT_CHANNELS.length > 0) {
-          setActiveChannel(DEFAULT_CHANNELS[0]);
+        const fallbackList = cloudChannels.length > 0 ? cloudChannels : DEFAULT_CHANNELS;
+        if (fallbackList && fallbackList.length > 0) {
+          setActiveChannel(fallbackList[0]);
         }
       }
       setImportStatus({ type: "success", text: "Playlist removed cleanly." });
@@ -374,42 +482,6 @@ export default function useIPTVState() {
     }
   };
 
-  // Handle auto-detect offline channel
-  const handleChannelOffline = (channelId: string) => {
-    setBlockedChannels(prev => {
-      if (prev.includes(channelId)) return prev;
-      const updated = [...prev, channelId];
-      
-      // Select another channel to play next if current active is now hidden
-      if (activeChannel?.id === channelId) {
-        // Find next non-blocked channel in our active list
-        const fallback = activeChannels.find(c => c.id !== channelId && !updated.includes(c.id));
-        if (fallback) {
-          setActiveChannel(fallback);
-        }
-      }
-
-      // Display dynamic temporary status notice
-      const channelObj = activeChannels.find(c => c.id === channelId);
-      const name = channelObj ? channelObj.name : "channel";
-      setImportStatus({ 
-        type: "info", 
-        text: `Offline channel "${name}" automatically hidden to keep list clean.` 
-      });
-
-      return updated;
-    });
-  };
-
-  // Reset/Clear all blocked channels
-  const handleClearBlockedChannels = () => {
-    setBlockedChannels([]);
-    setImportStatus({ 
-      type: "success", 
-      text: "Hidden channels list restored successfully!" 
-    });
-  };
-
   return {
     playlists,
     setPlaylists,
@@ -443,10 +515,6 @@ export default function useIPTVState() {
     setPlaylistNameInput,
     importStatus,
     setImportStatus,
-    blockedChannels,
-    setBlockedChannels,
-    hideBlocked,
-    setHideBlocked,
     activeChannels,
     categories,
     filteredChannels,
@@ -458,7 +526,13 @@ export default function useIPTVState() {
     handleM3UFileUpload,
     handleImportRemotePlaylist,
     handleClearHistory,
-    handleChannelOffline,
-    handleClearBlockedChannels,
+    // Cloud states
+    cloudChannels,
+    isLoadingCloud,
+    handleSeedDefaultChannels,
+    handleAddCloudChannel,
+    handleUpdateCloudChannel,
+    handleDeleteCloudChannel,
+    handleReorderCloudChannels,
   };
 }

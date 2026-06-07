@@ -111,7 +111,7 @@ export default function PlaylistManager({
           }`}
         >
           <Heart size={15} />
-          Favorites ({favorites.length})
+          Favorites ({favorites?.length || 0})
         </button>
         <button
           id="tab-history"
@@ -303,11 +303,11 @@ export default function PlaylistManager({
             )}
 
             {/* List of custom imported playlists with delete options */}
-            {playlists.length > 0 && (
+            {(playlists?.length || 0) > 0 && (
               <div className="pt-4 border-t border-white/5">
-                <h5 className="text-xs font-bold text-slate-300 uppercase font-mono tracking-widest mb-3">Stored Custom Playlists ({playlists.length})</h5>
+                <h5 className="text-xs font-bold text-slate-300 uppercase font-mono tracking-widest mb-3">Stored Custom Playlists ({playlists?.length || 0})</h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {playlists.map((ply) => (
+                  {(playlists || []).map((ply) => (
                     <div 
                       key={ply.id}
                       onClick={() => selectPlaylist(ply.id)}
@@ -319,7 +319,7 @@ export default function PlaylistManager({
                     >
                       <div className="flex flex-col min-w-0 pr-4">
                         <span className="font-bold text-xs truncate max-w-[190px]">{ply.name}</span>
-                        <span className="text-[10px] text-slate-400 mt-1">{ply.channels.length} channels • {ply.importDate}</span>
+                        <span className="text-[10px] text-slate-400 mt-1">{ply.channels?.length || 0} channels • {ply.importDate}</span>
                       </div>
                       <button
                         id={`btn-delete-playlist-${ply.id}`}
@@ -346,7 +346,7 @@ export default function PlaylistManager({
               <p className="text-slate-400 text-xs">Quick access bookmark list. Click on the heart icon on any channel in the sidebar to add it here.</p>
             </div>
 
-            {favorites.length === 0 ? (
+            {(favorites?.length || 0) === 0 ? (
               <div className="text-center py-8 text-neutral-500 bg-zinc-950/30 rounded-xl border border-white/5">
                 <Heart className="mx-auto mb-2 opacity-30 text-rose-500" size={28} />
                 <p className="text-xs font-medium">Favorite streams list is currently empty.</p>
@@ -399,7 +399,7 @@ export default function PlaylistManager({
                 <h4 className="text-white font-bold text-sm mb-0.5">Recents Played History</h4>
                 <p className="text-slate-400 text-xs">Review channels you streamed recently on this browser.</p>
               </div>
-              {history.length > 0 && (
+              {(history?.length || 0) > 0 && (
                 <button
                   id="btn-clear-history-logs"
                   onClick={handleClearHistory}
@@ -411,7 +411,7 @@ export default function PlaylistManager({
               )}
             </div>
 
-            {history.length === 0 ? (
+            {(history?.length || 0) === 0 ? (
               <div className="text-center py-8 text-neutral-500 bg-zinc-950/30 rounded-xl border border-white/5">
                 <History className="mx-auto mb-2 opacity-30" size={28} />
                 <p className="text-xs font-medium">History is clean. Play some streams to populate this list.</p>

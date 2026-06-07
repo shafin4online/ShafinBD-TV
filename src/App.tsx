@@ -16,6 +16,7 @@ import ActiveSourceBar from "./components/ActiveSourceBar";
 import useSecurityShield from "./hooks/useSecurityShield";
 import useIPTVState from "./hooks/useIPTVState";
 import usePWAInstall from "./hooks/usePWAInstall";
+import AdminPanel from "./components/AdminPanel";
 
 export default function App() {
   // --- SECURITY ENHANCEMENTS ---
@@ -50,9 +51,6 @@ export default function App() {
     playlistNameInput,
     setPlaylistNameInput,
     importStatus,
-    blockedChannels,
-    hideBlocked,
-    setHideBlocked,
     activeChannels,
     categories,
     filteredChannels,
@@ -64,9 +62,35 @@ export default function App() {
     handleM3UFileUpload,
     handleImportRemotePlaylist,
     handleClearHistory,
-    handleChannelOffline,
-    handleClearBlockedChannels,
+    // Firestore cloud synchronization
+    cloudChannels,
+    isLoadingCloud,
+    handleSeedDefaultChannels,
+    handleAddCloudChannel,
+    handleUpdateCloudChannel,
+    handleDeleteCloudChannel,
+    handleReorderCloudChannels,
   } = useIPTVState();
+
+  // --- DETECT ADMIN ROUTING & SECURE DEEP SITES ---
+  const [isAdminRoute, setIsAdminRoute] = React.useState(() => {
+    return window.location.pathname === "/shafinadmin";
+  });
+
+  // Handle exiting admin panel cleanly back to player
+  const handleExitAdmin = () => {
+    window.history.pushState({}, "", "/");
+    setIsAdminRoute(false);
+  };
+
+  // Sync state if user clicks back or navigates history
+  React.useEffect(() => {
+    const handlePopState = () => {
+      setIsAdminRoute(window.location.pathname === "/shafinadmin");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // --- PWA INSTALLATION SYSTEM ---
   const {
@@ -75,6 +99,22 @@ export default function App() {
     setIsInstallDocOpen,
     handleInstallClick,
   } = usePWAInstall();
+
+  if (isAdminRoute) {
+    return (
+      <AdminPanel
+        cloudChannels={cloudChannels}
+        isLoadingCloud={isLoadingCloud}
+        onSeedDefault={handleSeedDefaultChannels}
+        onAddChannel={handleAddCloudChannel}
+        onUpdateChannel={handleUpdateCloudChannel}
+        onDeleteChannel={handleDeleteCloudChannel}
+        onReorderChannels={handleReorderCloudChannels}
+        onClose={handleExitAdmin}
+        importStatus={importStatus}
+      />
+    );
+  }
 
   return (
     <div id="shafinbd-tv-root" className="min-h-screen bg-[#050505] text-neutral-100 font-sans selection:bg-cyan-500 selection:text-neutral-950 flex flex-col antialiased">
@@ -98,7 +138,6 @@ export default function App() {
           {/* Main IPTV player */}
           <VideoSection 
             activeChannel={activeChannel} 
-            onChannelOffline={handleChannelOffline}
           />
 
           {/* Quick Playlist Selection Bar & Info Statuses */}
@@ -160,11 +199,6 @@ export default function App() {
             favorites={favorites}
             toggleFavorite={toggleFavorite}
             handleSelectChannel={handleSelectChannel}
-            blockedChannelsCount={blockedChannels.length}
-            onClearBlockedChannels={handleClearBlockedChannels}
-            hideBlockedChannels={hideBlocked}
-            setHideBlockedChannels={setHideBlocked}
-            onMarkOffline={handleChannelOffline}
           />
         </div>
 
