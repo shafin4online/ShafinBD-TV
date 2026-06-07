@@ -17,6 +17,7 @@ import useSecurityShield from "./hooks/useSecurityShield";
 import useIPTVState from "./hooks/useIPTVState";
 import usePWAInstall from "./hooks/usePWAInstall";
 import AdminPanel from "./components/AdminPanel";
+import { Language } from "./utils/translations";
 
 export default function App() {
   // --- SECURITY ENHANCEMENTS ---
@@ -77,12 +78,22 @@ export default function App() {
     // Categories management options
     dbCategories,
     handleUpdateCategories,
+    playCounts,
   } = useIPTVState();
 
   // --- DETECT ADMIN ROUTING & SECURE DEEP SITES ---
   const [isAdminRoute, setIsAdminRoute] = React.useState(() => {
     return window.location.pathname === "/shafinadmin";
   });
+
+  // --- LANGUAGE MANAGEMENT STATE (Default: "bn") ---
+  const [lang, setLang] = React.useState<Language>(() => {
+    return (localStorage.getItem("shafinbd_app_lang") as Language) || "bn";
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem("shafinbd_app_lang", lang);
+  }, [lang]);
 
   // --- POPUP CONTROLLER WATCH STOPWATCH ENGINE ---
   const [watchSeconds, setWatchSeconds] = React.useState(() => {
@@ -208,6 +219,8 @@ export default function App() {
         playlistsCount={playlists.length + 1} 
         showInstallBtn={showInstallBtn}
         onInstallClick={handleInstallClick}
+        lang={lang}
+        onLangChange={setLang}
       />
 
       {/* 💻 Main Layout Grid Block */}
@@ -239,6 +252,10 @@ export default function App() {
             activeChannelsCount={activeChannels.length}
             selectPlaylist={selectPlaylist}
             importStatus={importStatus}
+            lang={lang}
+            activeChannels={activeChannels}
+            playCounts={playCounts}
+            handleSelectChannel={handleSelectChannel}
           />
 
           {/* Configuration Desk (Playlists import & Links payload) */}
@@ -250,26 +267,12 @@ export default function App() {
               favorites={favorites}
               activeControlTab={activeControlTab}
               setActiveControlTab={setActiveControlTab}
-              activeImportMethod={activeImportMethod}
-              setActiveImportMethod={setActiveImportMethod}
-              directStreamUrl={directStreamUrl}
-              setDirectStreamUrl={setDirectStreamUrl}
-              directStreamName={directStreamName}
-              setDirectStreamName={setDirectStreamName}
-              directStreamCategory={directStreamCategory}
-              setDirectStreamCategory={setDirectStreamCategory}
-              playlistUrlInput={playlistUrlInput}
-              setPlaylistUrlInput={setPlaylistUrlInput}
-              playlistNameInput={playlistNameInput}
-              setPlaylistNameInput={setPlaylistNameInput}
+              lang={lang}
               activeChannels={activeChannels}
               handleSelectChannel={handleSelectChannel}
               selectPlaylist={selectPlaylist}
               toggleFavorite={toggleFavorite}
               handleDeletePlaylist={handleDeletePlaylist}
-              handlePlayDirectStream={handlePlayDirectStream}
-              handleM3UFileUpload={handleM3UFileUpload}
-              handleImportRemotePlaylist={handleImportRemotePlaylist}
               handleClearHistory={handleClearHistory}
             />
           </div>
@@ -290,6 +293,10 @@ export default function App() {
             favorites={favorites}
             toggleFavorite={toggleFavorite}
             handleSelectChannel={handleSelectChannel}
+            lang={lang}
+            activePlaylistId={activePlaylistId}
+            playlists={playlists}
+            selectPlaylist={selectPlaylist}
           />
         </div>
 
@@ -299,6 +306,7 @@ export default function App() {
       <MobileBottomNav 
         mobileActiveTab={mobileActiveTab}
         setMobileActiveTab={setMobileActiveTab}
+        lang={lang}
       />
 
       {/* 🔮 Deep Footer */}

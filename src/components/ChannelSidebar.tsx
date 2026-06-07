@@ -5,7 +5,8 @@
 
 import React, { useState, useMemo } from "react";
 import { Video, Search, AlertTriangle, Heart, Info, ArrowUpDown } from "lucide-react";
-import { Channel } from "../types";
+import { Channel, SavedPlaylist } from "../types";
+import { translations, Language } from "../utils/translations";
 
 export interface ChannelSidebarProps {
   filteredChannels: Channel[];
@@ -19,6 +20,10 @@ export interface ChannelSidebarProps {
   favorites: string[];
   toggleFavorite: (channelId: string, event: React.MouseEvent) => void;
   handleSelectChannel: (channel: Channel) => void;
+  lang: Language;
+  activePlaylistId: string;
+  playlists: SavedPlaylist[];
+  selectPlaylist: (playlistId: string) => void;
 }
 
 export default function ChannelSidebar({
@@ -33,6 +38,10 @@ export default function ChannelSidebar({
   favorites,
   toggleFavorite,
   handleSelectChannel,
+  lang,
+  activePlaylistId,
+  playlists,
+  selectPlaylist,
 }: ChannelSidebarProps) {
   const [sortMethod, setSortMethod] = useState<"recent" | "name">("recent");
 
@@ -52,14 +61,36 @@ export default function ChannelSidebar({
       {/* Sidebar Header Console */}
       <div className="p-4 border-b border-white/5 bg-zinc-950/50 flex flex-col gap-3">
         
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold text-slate-300 font-mono tracking-widest uppercase flex items-center gap-1.5">
-            <Video size={13} className="text-cyan-400" />
-            Live Stations
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-bold text-slate-300 font-mono tracking-widest uppercase flex items-center gap-1.5 truncate">
+            <Video size={13} className="text-cyan-400 shrink-0" />
+            {translations[lang].live_stations_header}
           </h2>
-          <span className="bg-neutral-800 text-[10px] text-slate-300 font-mono font-bold px-2 py-0.5 rounded-lg border border-white/5">
-            {filteredChannels.length} of {activeChannels.length}
+          <span className="bg-neutral-800 text-[9px] sm:text-[10px] text-slate-300 font-mono font-bold px-2 py-0.5 rounded-lg border border-white/5 shrink-0">
+            {filteredChannels.length} / {activeChannels.length}
           </span>
+        </div>
+
+        {/* Playlist Selector inside Sidebar */}
+        <div className="flex flex-col gap-1.5 bg-zinc-950 p-2 rounded-xl border border-white/5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider px-1 shrink-0">
+            {translations[lang].select_playlist}:
+          </span>
+          <select
+            id="sidebar-playlist-selector"
+            value={activePlaylistId}
+            onChange={(e) => selectPlaylist(e.target.value)}
+            className="bg-zinc-900 border border-white/10 hover:border-white/20 hover:text-white text-neutral-200 text-xs rounded-lg px-2.5 py-1 outline-none focus:border-cyan-500 cursor-pointer min-w-0 flex-1 font-semibold transition"
+          >
+            <option value="default" className="bg-neutral-900 text-neutral-300">
+              {lang === "bn" ? "🌍 ডিফল্ট চ্যানেলসমূহ" : "🌍 Default channels (Public)"}
+            </option>
+            {playlists.map((ply) => (
+              <option key={ply.id} value={ply.id} className="bg-neutral-900 text-neutral-300">
+                📂 {ply.name} ({ply.channels?.length || 0})
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Smart search input and sorting selection bar */}
@@ -73,7 +104,7 @@ export default function ChannelSidebar({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search TV channels..."
+              placeholder={translations[lang].search_placeholder}
               className="w-full bg-zinc-950 border border-white/10 hover:border-white/15 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl py-2 pl-9 pr-3 text-xs outline-none text-neutral-200 transition"
             />
           </div>
@@ -84,29 +115,36 @@ export default function ChannelSidebar({
               id="stations-sort-selector"
               value={sortMethod}
               onChange={(e) => setSortMethod(e.target.value as "recent" | "name")}
-              className="bg-transparent text-neutral-300 text-[11px] py-2 pr-1 outline-none cursor-pointer font-semibold select-none"
+              className="bg-transparent text-neutral-300 text-[11px] py-2 pr-1 outline-none cursor-pointer font-semibold select-none bg-zinc-950 border-none"
             >
-              <option value="recent">Recent</option>
-              <option value="name">Name A-Z</option>
+              <option value="recent" className="bg-neutral-900">{lang === "bn" ? "সাম্প্রতিক" : "Recent"}</option>
+              <option value="name" className="bg-neutral-900">{lang === "bn" ? "নাম A-Z" : "Name A-Z"}</option>
             </select>
           </div>
         </div>
 
         {/* Top Categories Filters Tabbed line */}
         <div id="category-scroller" className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-white/10 select-none">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`text-[10px] px-2.5 py-1 rounded-lg shrink-0 font-bold border transition ${
-                selectedCategory === cat
-                  ? "bg-cyan-500 text-black border-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-                  : "bg-neutral-800 border-white/5 text-slate-300 hover:bg-neutral-700 hover:text-white"
-              }`}
-            >
-              {cat === "Favorites" ? "❤️ Favs" : cat}
-            </button>
-          ))}
+          {categories.map((cat) => {
+            const displayLabel = cat === "Favorites" 
+              ? (lang === "bn" ? "❤️ ফেভারিটস" : "❤️ Favs") 
+              : cat === "All" 
+                ? translations[lang].all_categories 
+                : cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`text-[10px] px-2.5 py-1.5 rounded-lg shrink-0 font-bold border transition cursor-pointer ${
+                  selectedCategory === cat
+                    ? "bg-cyan-500 text-black border-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)] font-extrabold"
+                    : "bg-neutral-800 border-white/5 text-slate-300 hover:bg-neutral-700 hover:text-white"
+                }`}
+              >
+                {displayLabel}
+              </button>
+            );
+          })}
         </div>
 
       </div>
@@ -118,14 +156,16 @@ export default function ChannelSidebar({
       >
         {sortedChannels.length === 0 ? (
           <div className="text-center py-12 text-slate-500 flex flex-col items-center">
-            <AlertTriangle size={20} className="mb-2 text-slate-600" />
-            <p className="text-xs">No channels found matching filters.</p>
+            <AlertTriangle size={20} className="mb-2 text-slate-600 animate-bounce" />
+            <p className="text-xs">
+              {lang === "bn" ? "কোনো মিল পাওয়া যায়নি।" : "No channels found matching filters."}
+            </p>
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery("")}
-                className="text-xs font-semibold text-cyan-400 hover:underline mt-2 flex items-center gap-1"
+                className="text-xs font-semibold text-cyan-400 hover:underline mt-2 flex items-center gap-1 cursor-pointer"
               >
-                Clear Search
+                {lang === "bn" ? "সার্চ মুছুন" : "Clear Search"}
               </button>
             )}
           </div>
@@ -173,7 +213,7 @@ export default function ChannelSidebar({
                         {chan.category || "General"}
                       </span>
                       {isCurrent && (
-                        <span className="text-[8px] bg-red-600/25 px-1 py-0.5 rounded text-red-500 animate-pulse font-mono tracking-widest font-bold">
+                        <span className="text-[8px] bg-red-600/25 px-1.5 py-0.5 rounded text-red-500 animate-pulse font-mono tracking-widest font-bold">
                           LIVE
                         </span>
                       )}
@@ -186,7 +226,7 @@ export default function ChannelSidebar({
                   id={`btn-favorite-icon-${chan.id}`}
                   onClick={(e) => toggleFavorite(chan.id, e)}
                   title={isFav ? "Remove from Favorites" : "Add to Favorites"}
-                  className={`p-1.5 rounded-lg hover:bg-white/5 block ${
+                  className={`p-1.5 rounded-lg hover:bg-white/5 block cursor-pointer shrink-0 ${
                     isFav ? "text-rose-500" : "text-slate-500 group-hover:text-slate-300 hover:text-white transition duration-200"
                   }`}
                 >
@@ -202,7 +242,9 @@ export default function ChannelSidebar({
       <div className="p-3 bg-zinc-950/80 border-t border-white/5 text-[10px] text-zinc-500 leading-normal flex items-start gap-2 select-none">
         <Info size={14} className="shrink-0 mt-0.5 text-slate-400" />
         <span>
-          CORS restriction is a generic browser protection block. Feeds requires the target stream servers to send clear cross-domain permissions.
+          {lang === "bn"
+            ? "CORS রেস্ট্রিকশন ব্রাউজারের একটি ডিফল্ট নিরাপত্তা ব্যবস্থা। চ্যানেল চালানোর জন্য মূল সার্ভারের ক্রস-অরিজিন পারমিশন সাপোর্ট থাকা প্রয়োজন।"
+            : "CORS restriction is a generic browser protection block. Feeds requires the target stream servers to send clear cross-domain permissions."}
         </span>
       </div>
 

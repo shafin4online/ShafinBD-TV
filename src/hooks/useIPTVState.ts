@@ -298,6 +298,20 @@ export default function useIPTVState() {
     }
   });
 
+  // Playback counts tracker for most popular channels
+  const [playCounts, setPlayCounts] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem("shafinbd_play_counts");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  });
+
   // Currently playing channel
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
 
@@ -306,7 +320,7 @@ export default function useIPTVState() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   // Tab selections
-  const [activeControlTab, setActiveControlTab] = useState<"import" | "history" | "favorites">("import");
+  const [activeControlTab, setActiveControlTab] = useState<"import" | "history" | "favorites">("favorites");
   const [activeImportMethod, setActiveImportMethod] = useState<"link" | "upload" | "m3u_url">("link");
   const [mobileActiveTab, setMobileActiveTab] = useState<"player" | "channels" | "playlists">("player");
 
@@ -435,6 +449,13 @@ export default function useIPTVState() {
     setActiveChannel(channel);
     setMobileActiveTab("player");
     
+    // Increment playback count for popularity algorithm
+    setPlayCounts(prev => {
+      const nextCounts = { ...prev, [channel.id]: (prev[channel.id] || 0) + 1 };
+      localStorage.setItem("shafinbd_play_counts", JSON.stringify(nextCounts));
+      return nextCounts;
+    });
+
     // Push into play history list (preventing duplicate sequential logs & keeping most recent first)
     const newHistoryItem: PlayHistoryItem = {
       channelId: channel.id,
@@ -683,5 +704,8 @@ export default function useIPTVState() {
     // Categories management
     dbCategories,
     handleUpdateCategories,
+    // Playback counts
+    playCounts,
+    setPlayCounts,
   };
 }

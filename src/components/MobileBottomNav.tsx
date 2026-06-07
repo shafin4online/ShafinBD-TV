@@ -1,12 +1,18 @@
 import React from "react";
 import { Tv, List, Plus } from "lucide-react";
+import { translations, Language } from "../utils/translations";
 
 interface MobileBottomNavProps {
   mobileActiveTab: "player" | "channels" | "playlists";
   setMobileActiveTab: (tab: "player" | "channels" | "playlists") => void;
+  lang: Language;
 }
 
-export default function MobileBottomNav({ mobileActiveTab, setMobileActiveTab }: MobileBottomNavProps) {
+export default function MobileBottomNav({ 
+  mobileActiveTab, 
+  setMobileActiveTab,
+  lang 
+}: MobileBottomNavProps) {
   return (
     <nav 
       id="mobile-bottom-nav" 
@@ -14,19 +20,19 @@ export default function MobileBottomNav({ mobileActiveTab, setMobileActiveTab }:
     >
       <button
         onClick={() => setMobileActiveTab("player")}
-        className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 outline-none select-none ${
+        className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 outline-none select-none cursor-pointer ${
           mobileActiveTab === "player"
-            ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold"
+            ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold animate-pulse-subtle"
             : "text-slate-400 hover:text-slate-200"
         }`}
       >
-        <Tv size={16} className={mobileActiveTab === "player" ? "text-cyan-400 animate-pulse" : "text-slate-400"} />
-        <span className="text-[10px] font-bold tracking-wider uppercase">Watch</span>
+        <Tv size={16} className={mobileActiveTab === "player" ? "text-cyan-400" : "text-slate-400"} />
+        <span className="text-[10px] font-bold tracking-wider uppercase">{translations[lang].watch}</span>
       </button>
 
       <button
         onClick={() => setMobileActiveTab("channels")}
-        className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 relative outline-none select-none ${
+        className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 relative outline-none select-none cursor-pointer ${
           mobileActiveTab === "channels"
             ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold"
             : "text-slate-400 hover:text-slate-200"
@@ -37,19 +43,19 @@ export default function MobileBottomNav({ mobileActiveTab, setMobileActiveTab }:
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
         </span>
         <List size={16} className={mobileActiveTab === "channels" ? "text-cyan-400" : "text-slate-400"} />
-        <span className="text-[10px] font-bold tracking-wider uppercase">Stations</span>
+        <span className="text-[10px] font-bold tracking-wider uppercase">{translations[lang].stations}</span>
       </button>
 
       <button
         onClick={() => setMobileActiveTab("playlists")}
-        className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 outline-none select-none ${
+        className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition duration-200 outline-none select-none cursor-pointer ${
           mobileActiveTab === "playlists"
             ? "text-cyan-400 bg-cyan-950/40 border border-cyan-500/15 font-bold"
             : "text-slate-400 hover:text-slate-200"
         }`}
       >
         <Plus size={16} className={mobileActiveTab === "playlists" ? "text-cyan-400" : "text-slate-400"} />
-        <span className="text-[10px] font-bold tracking-wider uppercase">Feeds</span>
+        <span className="text-[10px] font-bold tracking-wider uppercase">{translations[lang].feeds}</span>
       </button>
     </nav>
   );
