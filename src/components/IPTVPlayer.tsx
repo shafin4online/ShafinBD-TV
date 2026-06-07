@@ -25,12 +25,48 @@ import PlayerControls from "./PlayerControls";
 interface IPTVPlayerProps {
   channel: Channel | null;
   onAutoPlayFailed?: () => void;
+  popupConfig: any;
+  showFbPopup: boolean;
+  showCustomPopup: boolean;
+  onFbDismiss: () => void;
+  onCustomDismiss: () => void;
 }
 
-export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProps) {
+export default function IPTVPlayer({ 
+  channel, 
+  onAutoPlayFailed,
+  popupConfig,
+  showFbPopup,
+  showCustomPopup,
+  onFbDismiss,
+  onCustomDismiss
+}: IPTVPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+
+  // Popup user interaction and verification states
+  const [hasClickedFbLink, setHasClickedFbLink] = useState(false);
+  const [isVerifyingFb, setIsVerifyingFb] = useState(false);
+  const [hasClickedCustomLink, setHasClickedCustomLink] = useState(false);
+  const [isVerifyingCustom, setIsVerifyingCustom] = useState(false);
+
+  const isGated = showFbPopup || showCustomPopup;
+
+  // Reset verification states if popup flags turn false or components mount
+  useEffect(() => {
+    if (!showFbPopup) {
+      setHasClickedFbLink(false);
+      setIsVerifyingFb(false);
+    }
+  }, [showFbPopup]);
+
+  useEffect(() => {
+    if (!showCustomPopup) {
+      setHasClickedCustomLink(false);
+      setIsVerifyingCustom(false);
+    }
+  }, [showCustomPopup]);
 
   // States for player controls
   const [isPlaying, setIsPlaying] = useState(false);
@@ -551,13 +587,15 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
       >
         <video
           ref={videoRef}
-          className={`w-full h-full cursor-pointer transition-all duration-300 ${getAspectRatioClass()}`}
+          className={`w-full h-full cursor-pointer transition-all duration-500 ${getAspectRatioClass()} ${
+            isGated ? "filter blur-[6px] brightness-[0.35] opacity-65 pointer-events-none scale-105" : ""
+          }`}
           playsInline
           id="shafinbd-video-element"
         />
 
         {/* Central visual feedback ripple (YT styles) */}
-        {ripple && (
+        {ripple && !isGated && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
             <div className="bg-black/80 backdrop-blur-md rounded-full p-6 border border-white/10 text-cyan-400 font-mono shadow-2xl animate-hud-ripple flex flex-col items-center justify-center min-w-[100px] h-[100px]">
               {ripple.type === "play" && <Play size={28} fill="currentColor" className="ml-1" />}
@@ -589,14 +627,167 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
           </div>
         )}
 
+        {/* 🔒 UNCLOSABLE EMBEDDED POPUP GATES */}
+        {isGated && (
+          <div 
+            className="absolute inset-0 z-50 bg-[#020202]/50 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-4 text-neutral-100" 
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.12)_0,transparent_65%)] pointer-events-none animate-pulse" />
+            
+            {showFbPopup && (
+              <div id="embedded-fb-popup" className="max-w-[400px] w-full bg-zinc-950/95 border border-white/10 rounded-2xl p-4 sm:p-5 text-center space-y-4 shadow-[0_0_30px_rgba(6,182,212,0.3)] relative backdrop-blur-md animate-fade-in mx-2">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto text-cyan-400">
+                  <svg className="w-5 h-5 fill-current animate-bounce" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold font-mono tracking-widest text-cyan-400 uppercase bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-500/20">Follow & Share Required</span>
+                  <h2 className="text-sm font-bold tracking-tight text-white mt-1">লাইভ কন্টেন্ট দেখা সাময়িক স্থগিত!</h2>
+                  <p className="text-[11px] text-slate-300 leading-relaxed max-h-[70px] overflow-y-auto px-1">
+                    {popupConfig?.fbPopupText || "ভিডিও দেখা চালিয়ে যেতে নিচের পেজ লিংকটি ওপেন করে ফলো এবং শেয়ার সম্পন্ন করুন।"}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-zinc-900/60 rounded-xl border border-white/5 text-[10px] text-slate-400 text-left leading-normal space-y-1">
+                  <div className="font-mono text-cyan-400 font-extrabold uppercase text-[9px] tracking-wider">নির্দেশনা ও ভেরিফিকেশন:</div>
+                  <div>ধাপ ১ এ নিচে দেওয়া বাটনে ক্লিক করে অফিশিয়াল ফেসবুক পেজটি ভিজিট করুন। লিংক ওপেন করা মাত্রই ধাপ ২ তে ভিডিও আনলক করার নিশ্চিতকরণ বাটন সচল হবে।</div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {/* Step 1 Button */}
+                  {!hasClickedFbLink ? (
+                    <button
+                      onClick={() => {
+                        window.open(popupConfig?.facebookLink || "https://facebook.com", "_blank", "noopener,noreferrer");
+                        setHasClickedFbLink(true);
+                      }}
+                      className="w-full bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-[11px] font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 duration-200 cursor-pointer animate-pulse"
+                    >
+                      <span>১. পেজে যান এবং ফলো করুন</span>
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <div className="w-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      <span>✓ ফেসবুক পেজ লিংক ওপেন করা হয়েছে</span>
+                    </div>
+                  )}
+
+                  {/* Step 2 Verification Actions */}
+                  {hasClickedFbLink && (
+                    <div className="pt-1 transition-all duration-300">
+                      {isVerifyingFb ? (
+                        <div className="w-full bg-zinc-900/80 border border-cyan-500/10 text-slate-300 text-[11px] font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2">
+                          <RefreshCw size={12} className="animate-spin text-cyan-400" />
+                          <span className="font-mono text-[10px]">অ্যাকশন ট্র্যাকিং যাচাই করা হচ্ছে...</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setIsVerifyingFb(true);
+                            setTimeout(() => {
+                              onFbDismiss();
+                            }, 1800);
+                          }}
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-[11px] font-extrabold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1 transition-all shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
+                        >
+                          <span>২. অ্যাকশন সম্পূর্ণ করেছি (ভিডিও আনলক করুন)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showCustomPopup && (
+              <div id="embedded-custom-popup" className="max-w-[400px] w-full bg-zinc-950/95 border border-white/10 rounded-2xl p-4 sm:p-5 text-center space-y-4 shadow-[0_0_30px_rgba(6,182,212,0.3)] relative backdrop-blur-md animate-fade-in mx-2">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto text-cyan-400">
+                  <svg className="w-5 h-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold font-mono tracking-widest text-cyan-400 uppercase bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-500/20">Important Announcement</span>
+                  <h2 className="text-sm font-bold tracking-tight text-white mt-1">জরুরী নোটিশ এবং বিজ্ঞপ্তি!</h2>
+                  <p className="text-[11px] text-slate-300 leading-relaxed max-h-[70px] overflow-y-auto px-1">
+                    {popupConfig?.customPopupText || "Please visit and view our notification sponsor link to continue watching."}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-zinc-900/60 rounded-xl border border-white/5 text-[10px] text-slate-400 text-left leading-normal space-y-1">
+                  <div className="font-mono text-cyan-400 font-extrabold uppercase text-[9px] tracking-wider">নির্দেশনা ও ভেরিফিকেশন:</div>
+                  <div>ধাপ ১ এ নিচের লিংকে ক্লিক করে বিজ্ঞপ্তিটি সম্পূর্ণ ভিজিট করুন। লিংকটি ওপেন করা মাত্রই স্ক্রিনটি আনলক করার দ্বিতীয় বাটনটি এখানে চলে আসবে।</div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {/* Step 1 Button */}
+                  {!hasClickedCustomLink ? (
+                    <button
+                      onClick={() => {
+                        window.open(popupConfig?.customPopupLink || "https://shafinbd.net", "_blank", "noopener,noreferrer");
+                        setHasClickedCustomLink(true);
+                      }}
+                      className="w-full bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-[11px] font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 duration-200 cursor-pointer animate-pulse"
+                    >
+                      <span>১. নোটিশের লিংকে যান</span>
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <div className="w-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      <span>✓ বিজ্ঞপ্তি ও পেজ লিংক সফলভাবে দেখা হয়েছে</span>
+                    </div>
+                  )}
+
+                  {/* Step 2 Verification Actions */}
+                  {hasClickedCustomLink && (
+                    <div className="pt-1 transition-all duration-300">
+                      {isVerifyingCustom ? (
+                        <div className="w-full bg-zinc-900/80 border border-cyan-500/10 text-slate-300 text-[11px] font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2">
+                          <RefreshCw size={12} className="animate-spin text-cyan-400" />
+                          <span className="font-mono text-[10px]">বিজ্ঞপ্তি ভিজিট বিবরণ যাচাই হচ্ছে...</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setIsVerifyingCustom(true);
+                            setTimeout(() => {
+                              onCustomDismiss();
+                            }, 1800);
+                          }}
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-[11px] font-extrabold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1 transition-all shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
+                        >
+                          <span>২. বিজ্ঞপ্তি সম্পূর্ণ পড়েছি (আনলক করুন)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+          </div>
+        )}
+
         {/* Dynamic Inner Hover Overlay (Semi-gradient background) */}
-        <div 
-          id="player-overlay"
-          className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/45 flex flex-col justify-between transition-opacity duration-300 p-4 ${
-            isControlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-          onClick={(e) => e.stopPropagation()} // Overlays maintain core click handling
-        >
+        {!isGated && (
+          <div 
+            id="player-overlay"
+            className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/45 flex flex-col justify-between transition-opacity duration-300 p-4 ${
+              isControlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            onClick={(e) => e.stopPropagation()} // Overlays maintain core click handling
+          >
           {/* Header Title Information Row */}
           <PlayerHeader 
             channel={channel}
@@ -659,6 +850,7 @@ export default function IPTVPlayer({ channel, onAutoPlayFailed }: IPTVPlayerProp
           />
 
         </div>
+      )}
 
       </div>
 

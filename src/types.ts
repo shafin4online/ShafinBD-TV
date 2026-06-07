@@ -13,6 +13,7 @@ export interface Channel {
   groupTitle?: string;
   order?: number;
   createdAt?: string;
+  isDefault?: boolean;
 }
 
 export interface PlayHistoryItem {
@@ -31,3 +32,14 @@ export interface SavedPlaylist {
   importDate: string;
   isActive: boolean;
 }
+
+export interface PopupConfig {
+  fbPopupMinutes: number;
+  fbPopupText: string;
+  facebookLink: string;
+  customPopupMinutes: number;
+  customPopupText: string;
+  customPopupLink: string;
+  controlSystemEnabled: boolean;
+}
+

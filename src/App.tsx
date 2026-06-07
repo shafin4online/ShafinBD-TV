@@ -70,12 +70,56 @@ export default function App() {
     handleUpdateCloudChannel,
     handleDeleteCloudChannel,
     handleReorderCloudChannels,
+    handleSetDefaultCloudChannel,
+    // Popup controller config fields
+    popupConfig,
+    handleUpdatePopupConfig,
+    // Categories management options
+    dbCategories,
+    handleUpdateCategories,
   } = useIPTVState();
 
   // --- DETECT ADMIN ROUTING & SECURE DEEP SITES ---
   const [isAdminRoute, setIsAdminRoute] = React.useState(() => {
     return window.location.pathname === "/shafinadmin";
   });
+
+  // --- POPUP CONTROLLER WATCH STOPWATCH ENGINE ---
+  const [watchSeconds, setWatchSeconds] = React.useState(() => {
+    return Number(localStorage.getItem("shafinbd_watch_seconds") || "0");
+  });
+  const [fbDismissed, setFbDismissed] = React.useState(() => {
+    return localStorage.getItem("shafinbd_fb_dismissed") === "true";
+  });
+  const [customDismissed, setCustomDismissed] = React.useState(() => {
+    return localStorage.getItem("shafinbd_custom_dismissed") === "true";
+  });
+
+  // Sync interval loop tracking stream active playback time in background
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (popupConfig?.controlSystemEnabled) {
+      timer = setInterval(() => {
+        const video = document.querySelector("video");
+        const isVideoPlaying = video && !video.paused && video.currentTime > 0 && !video.ended && video.readyState > 2;
+        
+        // Block watch stopwatch accumulation if a locked gate state is currently active on render
+        const isCurrentlyLocked = (
+          (watchSeconds >= popupConfig.fbPopupMinutes * 60 && !fbDismissed) ||
+          (watchSeconds >= popupConfig.customPopupMinutes * 60 && !customDismissed)
+        );
+
+        if (isVideoPlaying && !isCurrentlyLocked) {
+          setWatchSeconds(prev => {
+            const next = prev + 1;
+            localStorage.setItem("shafinbd_watch_seconds", String(next));
+            return next;
+          });
+        }
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [popupConfig, fbDismissed, customDismissed, watchSeconds]);
 
   // Handle exiting admin panel cleanly back to player
   const handleExitAdmin = () => {
@@ -100,6 +144,25 @@ export default function App() {
     handleInstallClick,
   } = usePWAInstall();
 
+  // Determine active dynamic popups
+  const showFbPopup = popupConfig?.controlSystemEnabled && 
+                       (watchSeconds >= popupConfig.fbPopupMinutes * 60) && 
+                       !fbDismissed;
+
+  const showCustomPopup = popupConfig?.controlSystemEnabled && 
+                           (watchSeconds >= popupConfig.customPopupMinutes * 60) && 
+                           !customDismissed;
+
+  const handleFbClickDismiss = () => {
+    setFbDismissed(true);
+    localStorage.setItem("shafinbd_fb_dismissed", "true");
+  };
+
+  const handleCustomClickDismiss = () => {
+    setCustomDismissed(true);
+    localStorage.setItem("shafinbd_custom_dismissed", "true");
+  };
+
   if (isAdminRoute) {
     return (
       <AdminPanel
@@ -110,8 +173,13 @@ export default function App() {
         onUpdateChannel={handleUpdateCloudChannel}
         onDeleteChannel={handleDeleteCloudChannel}
         onReorderChannels={handleReorderCloudChannels}
+        onSetDefaultChannel={handleSetDefaultCloudChannel}
         onClose={handleExitAdmin}
         importStatus={importStatus}
+        popupConfig={popupConfig}
+        onUpdatePopupConfig={handleUpdatePopupConfig}
+        dbCategories={dbCategories}
+        onUpdateCategories={handleUpdateCategories}
       />
     );
   }
@@ -138,6 +206,11 @@ export default function App() {
           {/* Main IPTV player */}
           <VideoSection 
             activeChannel={activeChannel} 
+            popupConfig={popupConfig}
+            showFbPopup={showFbPopup}
+            showCustomPopup={showCustomPopup}
+            onFbDismiss={handleFbClickDismiss}
+            onCustomDismiss={handleCustomClickDismiss}
           />
 
           {/* Quick Playlist Selection Bar & Info Statuses */}
@@ -221,6 +294,7 @@ export default function App() {
 
       {/* 📜 First-time User Terms Notice & Disclaimer Modal */}
       <DisclaimerModal />
+
     </div>
   );
 }

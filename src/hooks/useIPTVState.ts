@@ -1,11 +1,91 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Channel, SavedPlaylist, PlayHistoryItem } from "../types";
+import { Channel, SavedPlaylist, PlayHistoryItem, PopupConfig } from "../types";
 import { DEFAULT_CHANNELS } from "../data/defaultChannels";
 import { parseM3U } from "../utils/m3uParser";
 import { collection, onSnapshot, query, doc, setDoc, deleteDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../utils/firebase";
 
 export default function useIPTVState() {
+  // --- POPUP CONTROLLER SYSTEM ---
+  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
+    fbPopupMinutes: 15,
+    fbPopupText: "ভিডিও দেখা কন্টিনিউ করতে আমাদের অফিশিয়াল ফেসবুক পেজটি ফলো এবং শেয়ার করুন। নিচের লিংকে ক্লিক করে পেজ ফলো করলেই ভিডিও আবার চালু হয়ে যাবে!",
+    facebookLink: "https://www.facebook.com/yourpage",
+    customPopupMinutes: 30,
+    customPopupText: "আমাদের স্পন্সর ওয়েবসাইট ভিজিট করুন এবং ভিডিও কন্টিনিউ করুন!",
+    customPopupLink: "https://example.com/sponsor",
+    controlSystemEnabled: false
+  });
+
+  // Fetch Popup configuration
+  useEffect(() => {
+    const docRef = doc(db, "configs", "popupConfig");
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPopupConfig({
+          fbPopupMinutes: typeof data.fbPopupMinutes === "number" ? data.fbPopupMinutes : 15,
+          fbPopupText: typeof data.fbPopupText === "string" ? data.fbPopupText : "ভিডিও দেখা কন্টিনিউ করতে আমাদের অফিশিয়াল ফেসবুক পেজটি ফলো এবং শেয়ার করুন। নিচের লিংকে ক্লিক করে পেজ ফলো করলেই ভিডিও আবার চালু হয়ে যাবে!",
+          facebookLink: typeof data.facebookLink === "string" ? data.facebookLink : "https://www.facebook.com/yourpage",
+          customPopupMinutes: typeof data.customPopupMinutes === "number" ? data.customPopupMinutes : 30,
+          customPopupText: typeof data.customPopupText === "string" ? data.customPopupText : "আমাদের স্পন্সর ওয়েবসাইট ভিজিট করুন এবং ভিডিও কন্টিনিউ করুন!",
+          customPopupLink: typeof data.customPopupLink === "string" ? data.customPopupLink : "https://example.com/sponsor",
+          controlSystemEnabled: typeof data.controlSystemEnabled === "boolean" ? data.controlSystemEnabled : false
+        });
+      }
+    }, (error) => {
+      console.error("Firestore popupConfig snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleUpdatePopupConfig = async (fields: Partial<PopupConfig>) => {
+    try {
+      setImportStatus({ type: "info", text: "Updating control system settings..." });
+      const docRef = doc(db, "configs", "popupConfig");
+      await setDoc(docRef, { ...popupConfig, ...fields }, { merge: true });
+      setImportStatus({ type: "success", text: "Control system settings updated successfully!" });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Failed to save control settings: ${err.message}` });
+    }
+  };
+
+  // --- CATEGORIES SYNC & ORDERING SYSTEM ---
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    const docRef = doc(db, "configs", "categoriesConfig");
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.order)) {
+          setDbCategories(data.order);
+        }
+      }
+    }, (error) => {
+      console.error("Firestore categoriesConfig snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleUpdateCategories = async (newCategories: string[]) => {
+    try {
+      setImportStatus({ type: "info", text: "Updating categories layout..." });
+      const docRef = doc(db, "configs", "categoriesConfig");
+      const cleanList = Array.from(new Set(
+        newCategories
+          .map(c => c.trim())
+          .filter(c => c && c !== "All" && c !== "Favorites")
+      ));
+      await setDoc(docRef, { order: cleanList });
+      setImportStatus({ type: "success", text: "Categories and ordering saved successfully!" });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Failed to update categories layout: ${err.message}` });
+    }
+  };
+
   // --- STATE PERSISTENCE & INITIALIZATION ---
   
   // Custom uploaded playlists list
@@ -155,6 +235,29 @@ export default function useIPTVState() {
     }
   };
 
+  // Set a specific channel as default, resetting all other channels' isDefault status in Firestore
+  const handleSetDefaultCloudChannel = async (channelId: string | null) => {
+    try {
+      setImportStatus({ type: "info", text: "Updating default channel configuration..." });
+      const batch = writeBatch(db);
+      cloudChannels.forEach((chan) => {
+        const docRef = doc(db, "channels", chan.id);
+        const shouldBeDefault = chan.id === channelId;
+        batch.update(docRef, { isDefault: shouldBeDefault });
+      });
+      await batch.commit();
+      setImportStatus({ 
+        type: "success", 
+        text: channelId 
+          ? "Successfully set default stream channel!" 
+          : "Successfully cleared default channel." 
+      });
+    } catch (err: any) {
+      console.error(err);
+      setImportStatus({ type: "error", text: `Failed to set default channel: ${err.message}` });
+    }
+  };
+
   // Watch history list
   const [history, setHistory] = useState<PlayHistoryItem[]>(() => {
     try {
@@ -219,7 +322,7 @@ export default function useIPTVState() {
   // Set default active channel if none loaded
   useEffect(() => {
     if (!activeChannel && activeChannels && activeChannels.length > 0) {
-      const defaultChannel = activeChannels.find(c => c.id === "fifa_plus_us") || activeChannels[0];
+      const defaultChannel = activeChannels.find(c => c.isDefault) || activeChannels.find(c => c.id === "fifa_plus_us") || activeChannels[0];
       setActiveChannel(defaultChannel);
     }
   }, [activeChannels, activeChannel]);
@@ -252,20 +355,46 @@ export default function useIPTVState() {
     }
   }, [importStatus]);
 
-  // Extract unique categories based on currently selected channels list
+  // Extract unique categories based on both custom configuration and channels list categories
   const categories = useMemo(() => {
-    const list = new Set<string>();
-    list.add("All");
-    list.add("Favorites");
+    const finalOrder: string[] = ["All", "Favorites"];
     
+    // Extracted dynamic categories from channels
+    const channelCats = new Set<string>();
     activeChannels.forEach(chan => {
       if (chan.category) {
-        list.add(chan.category);
+        const trimmed = chan.category.trim();
+        if (trimmed) {
+          channelCats.add(trimmed);
+        }
       }
     });
-    
-    return Array.from(list);
-  }, [activeChannels]);
+
+    const addedFromDb = new Set<string>();
+
+    // Add elements from dbCategories (except duplicate/All/Favorites)
+    dbCategories.forEach(cat => {
+      const trimmed = cat.trim();
+      if (trimmed && trimmed !== "All" && trimmed !== "Favorites") {
+        const lower = trimmed.toLowerCase();
+        if (!addedFromDb.has(lower)) {
+          finalOrder.push(trimmed);
+          addedFromDb.add(lower);
+        }
+      }
+    });
+
+    // Append any channel categories that were NOT in dbCategories
+    channelCats.forEach(cat => {
+      const lower = cat.toLowerCase();
+      if (!addedFromDb.has(lower) && cat !== "All" && cat !== "Favorites") {
+        finalOrder.push(cat);
+        addedFromDb.add(lower);
+      }
+    });
+
+    return finalOrder;
+  }, [activeChannels, dbCategories]);
 
   // Filter channels lists by category & search query
   const filteredChannels = useMemo(() => {
@@ -321,7 +450,8 @@ export default function useIPTVState() {
       : playlists.find(p => p.id === playlistId)?.channels || [];
       
     if (targetList.length > 0) {
-      setActiveChannel(targetList[0]);
+      const defaultChannel = targetList.find(c => c.isDefault) || targetList[0];
+      setActiveChannel(defaultChannel);
     }
   };
 
@@ -534,5 +664,12 @@ export default function useIPTVState() {
     handleUpdateCloudChannel,
     handleDeleteCloudChannel,
     handleReorderCloudChannels,
+    handleSetDefaultCloudChannel,
+    // Popup controller
+    popupConfig,
+    handleUpdatePopupConfig,
+    // Categories management
+    dbCategories,
+    handleUpdateCategories,
   };
 }

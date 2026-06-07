@@ -43,12 +43,53 @@
         }
       },
       "required": ["id", "name", "url", "category"]
+    },
+    "popupConfig": {
+      "title": "PopupConfig",
+      "description": "Controlling settings structure for showing custom timer-based forced overlay/popup redirections",
+      "type": "object",
+      "properties": {
+        "fbPopupMinutes": { "type": "integer" },
+        "fbPopupText": { "type": "string" },
+        "facebookLink": { "type": "string" },
+        "customPopupMinutes": { "type": "integer" },
+        "customPopupText": { "type": "string" },
+        "customPopupLink": { "type": "string" },
+        "controlSystemEnabled": { "type": "boolean" }
+      },
+      "required": [
+        "fbPopupMinutes",
+        "fbPopupText",
+        "facebookLink",
+        "customPopupMinutes",
+        "customPopupText",
+        "customPopupLink",
+        "controlSystemEnabled"
+      ]
+    },
+    "categoriesConfig": {
+      "title": "CategoriesConfig",
+      "description": "Holding global list of categories and their custom ordering of appearance",
+      "type": "object",
+      "properties": {
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["order"]
     }
   },
   "firestore": {
     "channels": {
       "schema": "channel",
       "description": "Collection of custom IPTV channels synced across all players"
+    },
+    "configs": {
+      "schema": "popupConfig",
+      "description": "Document collection holding global application configuration states"
     }
   }
 }
