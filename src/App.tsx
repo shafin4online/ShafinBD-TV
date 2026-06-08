@@ -242,6 +242,8 @@ export default function App() {
             onFbDismiss={handleFbClickDismiss}
             onCustomDismiss={handleCustomClickDismiss}
             onFbShareDismiss={handleFbShareClickDismiss}
+            isFloating={mobileActiveTab !== "player"}
+            onRestore={() => setMobileActiveTab("player")}
           />
 
           {/* Quick Playlist Selection Bar & Info Statuses */}

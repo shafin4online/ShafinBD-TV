@@ -9,7 +9,8 @@ import {
   Layers, 
   Check, 
   Minimize, 
-  Maximize 
+  Maximize,
+  PictureInPicture
 } from "lucide-react";
 
 interface PlayerQuality {
@@ -34,6 +35,8 @@ interface PlayerControlsProps {
   onToggleSettings: (visible: boolean) => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  isPiPSupported?: boolean;
+  onTogglePiP?: () => void;
 }
 
 export default function PlayerControls({
@@ -52,6 +55,8 @@ export default function PlayerControls({
   onToggleSettings,
   isFullscreen,
   onToggleFullscreen,
+  isPiPSupported = false,
+  onTogglePiP,
 }: PlayerControlsProps) {
   return (
     <div id="hud-controls-dock" className="mt-auto flex flex-col gap-2 z-30">
@@ -177,6 +182,21 @@ export default function PlayerControls({
                 </div>
               )}
             </div>
+          )}
+
+          {/* System Device Picture-in-Picture floating toggle */}
+          {isPiPSupported && (
+            <button
+              id="btn-video-pip"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePiP?.();
+              }}
+              title="System Picture-in-Picture (Overlay)"
+              className="text-white/80 hover:text-cyan-400 transition-colors p-1"
+            >
+              <PictureInPicture size={18} />
+            </button>
           )}
 
           {/* Fullscreen entering toggle switch */}

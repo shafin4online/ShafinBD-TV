@@ -11,6 +11,8 @@ interface VideoSectionProps {
   onFbDismiss: () => void;
   onCustomDismiss: () => void;
   onFbShareDismiss: () => void;
+  isFloating?: boolean;
+  onRestore?: () => void;
 }
 
 export default function VideoSection({ 
@@ -21,7 +23,9 @@ export default function VideoSection({
   showFbSharePopup,
   onFbDismiss,
   onCustomDismiss,
-  onFbShareDismiss
+  onFbShareDismiss,
+  isFloating = false,
+  onRestore
 }: VideoSectionProps) {
   return (
     <div className="w-full relative lg:sticky lg:top-24 z-30 lg:self-start">
@@ -34,6 +38,8 @@ export default function VideoSection({
         onFbDismiss={onFbDismiss}
         onCustomDismiss={onCustomDismiss}
         onFbShareDismiss={onFbShareDismiss}
+        isFloating={isFloating}
+        onRestore={onRestore}
         onAutoPlayFailed={() => {
           // Custom prompt handled gracefully by player internally
         }}

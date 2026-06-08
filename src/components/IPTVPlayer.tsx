@@ -32,6 +32,8 @@ interface IPTVPlayerProps {
   onFbDismiss: () => void;
   onCustomDismiss: () => void;
   onFbShareDismiss: () => void;
+  isFloating?: boolean;
+  onRestore?: () => void;
 }
 
 export default function IPTVPlayer({ 
@@ -43,7 +45,9 @@ export default function IPTVPlayer({
   showFbSharePopup,
   onFbDismiss,
   onCustomDismiss,
-  onFbShareDismiss
+  onFbShareDismiss,
+  isFloating = false,
+  onRestore
 }: IPTVPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -114,6 +118,32 @@ export default function IPTVPlayer({
   const [resolution, setResolution] = useState<string>("Unknown");
   const [bufferLength, setBufferLength] = useState<number>(0);
   const [bitrate, setBitrate] = useState<number>(0);
+
+  // Picture-in-Picture capability and toggles
+  const [isReadyPiP, setIsReadyPiP] = useState(false);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      setIsReadyPiP(
+        "pictureInPictureEnabled" in document &&
+        (document as any).pictureInPictureEnabled
+      );
+    }
+  }, []);
+
+  const handleTogglePiP = async () => {
+    const video = videoRef.current;
+    if (!video || !isReadyPiP) return;
+    try {
+      if ((document as any).pictureInPictureElement) {
+        await (document as any).exitPictureInPicture();
+      } else {
+        await video.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.error("Picture-in-picture session failed:", err);
+    }
+  };
 
   // Real-time Concurrent Viewers state
   const [viewersCount, setViewersCount] = useState<number>(0);
@@ -572,7 +602,11 @@ export default function IPTVPlayer({
   return (
     <div 
       id="player-view-container" 
-      className="flex flex-col bg-[#0d0d0d] rounded-2xl overflow-hidden shadow-2xl relative border border-white/5 transition-all duration-300"
+      className={
+        isFloating && channel
+          ? "fixed bottom-[84px] right-4 w-[200px] xs:w-[220px] sm:w-[260px] md:w-[320px] aspect-video z-50 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_20px_rgba(34,211,238,0.35)] border-2 border-cyan-500/50 bg-[#0d0d0d] animate-fade-in transition-all duration-300 transform-gpu"
+          : "flex flex-col bg-[#0d0d0d] rounded-2xl overflow-hidden shadow-2xl relative border border-white/5 transition-all duration-300"
+      }
     >
       {/* Dynamic Keyframe Ripple Effect CSS */}
       <style>{`
@@ -865,7 +899,7 @@ export default function IPTVPlayer({
         )}
 
         {/* Dynamic Inner Hover Overlay (Semi-gradient background) */}
-        {!isGated && (
+        {!isGated && !isFloating && (
           <div 
             id="player-overlay"
             className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/45 flex flex-col justify-between transition-opacity duration-300 p-4 ${
@@ -932,15 +966,86 @@ export default function IPTVPlayer({
             onToggleSettings={setShowSettings}
             isFullscreen={isFullscreen}
             onToggleFullscreen={toggleFullscreen}
+            isPiPSupported={isReadyPiP}
+            onTogglePiP={handleTogglePiP}
           />
 
+        </div>
+      )}
+
+      {/* Special Mini floating controller overlay when in-app floating is enabled */}
+      {!isGated && isFloating && channel && (
+        <div 
+          className="absolute inset-0 bg-black/40 hover:bg-black/75 flex flex-col justify-between p-2.5 transition-all duration-300 group/mini"
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePlay();
+          }}
+        >
+          {/* Mini Top Bar: Channel title + restore + close */}
+          <div className="flex items-center justify-between pointer-events-auto gap-2">
+            <span className="text-[10px] font-black text-white truncate max-w-[80px] drop-shadow-md bg-zinc-950/95 px-2 py-0.5 rounded-lg border border-white/5">
+              {channel.name}
+            </span>
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              {/* Restore / Maximize button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onRestore) onRestore();
+                }}
+                className="p-1 px-1.5 bg-cyan-950/90 border border-cyan-500/40 hover:border-cyan-400 text-cyan-400 rounded-lg text-[9px] font-black flex items-center gap-1 transition shadow-lg active:scale-95 cursor-pointer"
+                title="Full Screen Restore"
+              >
+                Restore
+              </button>
+              {/* Close/Pause button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isPlaying) {
+                    videoRef.current?.pause();
+                    setIsPlaying(false);
+                  }
+                }}
+                className="p-1 rounded-lg bg-zinc-900 border border-white/10 hover:border-white/20 text-slate-300 hover:text-white transition cursor-pointer"
+                title="Pause Stream"
+              >
+                <Pause size={10} fill="currentColor" />
+              </button>
+            </div>
+          </div>
+
+          {/* Central Play/Pause Indicator (glowing play icon on hover) */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+            <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-sm flex items-center justify-center text-cyan-400">
+              {isPlaying ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
+            </div>
+          </div>
+
+          {/* Mini Bottom Bar: Live Tag & Audio Mute Trigger */}
+          <div className="flex items-center justify-between pointer-events-auto mt-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded text-[8px] text-rose-400 select-none font-mono font-bold animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              <span>LIVE</span>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleMute();
+              }}
+              className="p-1 rounded-lg bg-zinc-900 border border-white/10 hover:border-white/20 text-white/95 transition cursor-pointer"
+            >
+              {isMuted ? <VolumeX size={10} /> : <Volume2 size={10} />}
+            </button>
+          </div>
         </div>
       )}
 
       </div>
 
       {/* Under Player Stream Detail Summary bar */}
-      {channel && (
+      {channel && !isFloating && (
         <div id="player-channel-summary-info" className="p-4 bg-[#0d0d0d] border-t border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {channel.logoUrl ? (
