@@ -224,12 +224,12 @@ export default function App() {
       />
 
       {/* 💻 Main Layout Grid Block */}
-      <main id="app-main-layout" className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 md:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pb-24 lg:pb-6">
+      <main id="app-main-layout" className="flex-1 max-w-7xl w-full mx-auto px-0 sm:px-4 py-0 sm:py-4 md:py-6 flex flex-col lg:grid lg:grid-cols-12 gap-4 md:gap-6 items-start pb-24 lg:pb-6">
         
         {/* Left Side: Video Host & Configurations (8/12 Columns) */}
         <div 
           id="player-and-import-panel" 
-          className="lg:col-span-8 flex flex-col gap-4 md:gap-6 w-full sticky top-[64px] md:top-[80px] lg:relative lg:top-0 z-30 bg-[#050505]/95 backdrop-blur-md pb-4 lg:pb-0 border-b border-white/5 lg:border-none px-1 lg:px-0 transform-gpu"
+          className="lg:col-span-8 flex flex-col gap-4 md:gap-6 w-full lg:relative lg:top-0 z-10 bg-[#050505]/95 pb-4 lg:pb-0 px-0 lg:px-0 transform-gpu"
         >
           
           {/* Main IPTV player */}
@@ -242,26 +242,48 @@ export default function App() {
             onFbDismiss={handleFbClickDismiss}
             onCustomDismiss={handleCustomClickDismiss}
             onFbShareDismiss={handleFbShareClickDismiss}
-            isFloating={mobileActiveTab !== "player"}
-            onRestore={() => setMobileActiveTab("player")}
+            isFloating={false}
           />
 
           {/* Quick Playlist Selection Bar & Info Statuses */}
-          <ActiveSourceBar
-            mobileActiveTab={mobileActiveTab}
-            activePlaylistId={activePlaylistId}
-            playlists={playlists}
-            activeChannelsCount={activeChannels.length}
-            selectPlaylist={selectPlaylist}
-            importStatus={importStatus}
-            lang={lang}
-            activeChannels={activeChannels}
-            playCounts={playCounts}
-            handleSelectChannel={handleSelectChannel}
-          />
+          <div className="px-4 sm:px-0">
+            <ActiveSourceBar
+              mobileActiveTab={mobileActiveTab}
+              activePlaylistId={activePlaylistId}
+              playlists={playlists}
+              activeChannelsCount={activeChannels.length}
+              selectPlaylist={selectPlaylist}
+              importStatus={importStatus}
+              lang={lang}
+              activeChannels={activeChannels}
+              playCounts={playCounts}
+              handleSelectChannel={handleSelectChannel}
+            />
+          </div>
+
+          {/* Channel Sidebar (MOBILE ONLY inside player-panel column for perfect top-sticky scrolling) */}
+          <div className={`${mobileActiveTab === "channels" ? "block" : "hidden"} lg:hidden w-full px-0 sm:px-0`}>
+            <ChannelSidebar
+              filteredChannels={filteredChannels}
+              activeChannels={activeChannels}
+              activeChannel={activeChannel}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              categories={categories}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              favorites={favorites}
+              toggleFavorite={toggleFavorite}
+              handleSelectChannel={handleSelectChannel}
+              lang={lang}
+              activePlaylistId={activePlaylistId}
+              playlists={playlists}
+              selectPlaylist={selectPlaylist}
+            />
+          </div>
 
           {/* Configuration Desk (Playlists import & Links payload) */}
-          <div className={`${mobileActiveTab === "playlists" ? "block" : "hidden lg:block"}`}>
+          <div className={`${mobileActiveTab === "playlists" ? "block" : "hidden lg:block"} px-4 sm:px-0`}>
             <PlaylistManager
               playlists={playlists}
               activePlaylistId={activePlaylistId}
@@ -281,8 +303,8 @@ export default function App() {
 
         </div>
 
-        {/* Right Side: Channel Sidebar (4/12 Columns) */}
-        <div className={`lg:col-span-4 w-full ${mobileActiveTab === "channels" ? "block" : "hidden lg:block"}`}>
+        {/* Right Side: Channel Sidebar (DESKTOP ONLY - 4/12 Columns) */}
+        <div className="hidden lg:block lg:col-span-4 w-full px-4 sm:px-0">
           <ChannelSidebar
             filteredChannels={filteredChannels}
             activeChannels={activeChannels}

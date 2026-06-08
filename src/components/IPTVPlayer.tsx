@@ -605,7 +605,7 @@ export default function IPTVPlayer({
       className={
         isFloating && channel
           ? "fixed bottom-[84px] right-4 w-[200px] xs:w-[220px] sm:w-[260px] md:w-[320px] aspect-video z-50 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_20px_rgba(34,211,238,0.35)] border-2 border-cyan-500/50 bg-[#0d0d0d] animate-fade-in transition-all duration-300 transform-gpu"
-          : "flex flex-col bg-[#0d0d0d] rounded-2xl overflow-hidden shadow-2xl relative border border-white/5 transition-all duration-300"
+          : "flex flex-col bg-[#0d0d0d] rounded-none sm:rounded-2xl overflow-hidden shadow-2xl relative border-x-0 sm:border-x border-y border-white/5 transition-all duration-300"
       }
     >
       {/* Dynamic Keyframe Ripple Effect CSS */}

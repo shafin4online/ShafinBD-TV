@@ -28,7 +28,7 @@ export default function VideoSection({
   onRestore
 }: VideoSectionProps) {
   return (
-    <div className="w-full relative lg:sticky lg:top-24 z-30 lg:self-start">
+    <div className="w-full sticky top-[56px] sm:top-[64px] md:top-[80px] lg:top-24 z-40 bg-[#050505] lg:self-start transform-gpu shadow-lg shadow-black/80">
       <IPTVPlayer 
         channel={activeChannel} 
         popupConfig={popupConfig}
